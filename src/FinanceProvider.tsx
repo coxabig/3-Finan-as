@@ -25,6 +25,7 @@ interface FinanceContextType {
   coupleProfile: Couple | null;
   partnerProfile: UserProfile | null;
   transactions: Transaction[];
+  allTransactions: Transaction[];
   goals: Goal[];
   cards: Card[];
   categories: Category[];
@@ -64,6 +65,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [coupleProfile, setCoupleProfile] = useState<Couple | null>(null);
   const [partnerProfile, setPartnerProfile] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -84,6 +86,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     let unsubscribeCouple: (() => void) | null = null;
     let unsubscribePartner: (() => void) | null = null;
     let unsubscribeTransactions: (() => void) | null = null;
+    let unsubscribeAllTransactions: (() => void) | null = null;
     let unsubscribeGoals: (() => void) | null = null;
     let unsubscribeCards: (() => void) | null = null;
     let unsubscribeCategories: (() => void) | null = null;
@@ -94,6 +97,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (unsubscribeCouple) { unsubscribeCouple(); unsubscribeCouple = null; }
       if (unsubscribePartner) { unsubscribePartner(); unsubscribePartner = null; }
       if (unsubscribeTransactions) { unsubscribeTransactions(); unsubscribeTransactions = null; }
+      if (unsubscribeAllTransactions) { unsubscribeAllTransactions(); unsubscribeAllTransactions = null; }
       if (unsubscribeGoals) { unsubscribeGoals(); unsubscribeGoals = null; }
       if (unsubscribeCards) { unsubscribeCards(); unsubscribeCards = null; }
       if (unsubscribeCategories) { unsubscribeCategories(); unsubscribeCategories = null; }
@@ -150,6 +154,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                   setTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
                 }, (err) => {
                   handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/transactions`);
+                });
+
+                // Listener de TODAS as Transações (para resumos históricos)
+                if (unsubscribeAllTransactions) unsubscribeAllTransactions();
+                const allTxQuery = collection(db, 'couples', profile.coupleId, 'transactions');
+                unsubscribeAllTransactions = onSnapshot(allTxQuery, (snapshot) => {
+                  setAllTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
+                }, (err) => {
+                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/all-transactions`);
                 });
 
                 // Listener das Metas
@@ -231,6 +244,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (unsubscribeUser) unsubscribeUser();
       if (unsubscribeCouple) unsubscribeCouple();
       if (unsubscribeTransactions) unsubscribeTransactions();
+      if (unsubscribeAllTransactions) unsubscribeAllTransactions();
       if (unsubscribeGoals) unsubscribeGoals();
       if (unsubscribeCards) unsubscribeCards();
       if (unsubscribeCategories) unsubscribeCategories();
@@ -695,6 +709,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       coupleProfile, 
       partnerProfile,
       transactions,
+      allTransactions,
       goals,
       cards,
       categories,

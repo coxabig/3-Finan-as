@@ -16,7 +16,8 @@ import {
   LogOut,
   Settings,
   Bell,
-  X
+  X,
+  BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, Card, Input } from './components/ui';
@@ -29,6 +30,7 @@ import { CardsView } from './views/CardsView';
 import { GoalsView } from './views/GoalsView';
 import { FamilyView } from './views/FamilyView';
 import { ProfileView } from './views/ProfileView';
+import { SummaryView } from './views/SummaryView';
 import { CategoriesView } from './views/CategoriesView';
 import { AccountSettingsView } from './views/AccountSettingsView';
 import { AuthView } from './views/AuthView';
@@ -89,6 +91,7 @@ function AppShell() {
       case 'dashboard': return <DashboardView />;
       case 'planning': return <PlanningView />;
       case 'cards': return <CardsView />;
+      case 'summaries': return <SummaryView />;
       case 'goals': return <GoalsView />;
       case 'family': return <FamilyView />;
       case 'categories': return <CategoriesView />;
@@ -105,6 +108,7 @@ function AppShell() {
   ];
 
   const sideItems = [
+    { id: 'summaries', icon: BarChart3, label: 'Resumos' },
     { id: 'goals', icon: Target, label: 'Metas' },
     { id: 'categories', icon: Tag, label: 'Categorias' },
     { id: 'family', icon: Users, label: 'Família' },
@@ -114,7 +118,7 @@ function AppShell() {
     <div className="min-h-screen w-full bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-500">
       {/* Top Header */}
       <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-100 dark:border-zinc-900">
-        <div className="max-w-screen-md mx-auto px-4 sm:px-8 h-20 sm:h-24 flex items-center justify-between">
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-12 h-20 sm:h-24 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-4">
             <Button 
               variant="outline" 
@@ -144,7 +148,7 @@ function AppShell() {
 
       {/* Main Content */}
       <main className="flex-1 w-full overflow-y-auto pb-32 sm:pb-40">
-        <div className="max-w-screen-md mx-auto">
+        <div className="max-w-screen-xl mx-auto">
           {userProfile && !userProfile.isPremium && (
             <div className="px-4 pt-4 sm:px-8 sm:pt-10 mb-2">
               <AdBanner />

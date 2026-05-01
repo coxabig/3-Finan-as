@@ -14,9 +14,16 @@ import { SwipeableItem } from '../components/SwipeableItem';
 export function GoalsView() {
   const { goals, addGoal, updateGoal, removeGoal } = useFinance();
   const [showModal, setShowModal] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Simulator State
+  const [simInitial, setSimInitial] = useState('0');
+  const [simMonthly, setSimMonthly] = useState('1000');
+  const [simRate, setSimRate] = useState('12');
+  const [simYears, setSimYears] = useState('5');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -362,7 +369,12 @@ export function GoalsView() {
                  <Calendar size={14} />
                  <span className="text-[10px] font-bold uppercase">Cálculo baseado em SELIC 12.0% aa</span>
                </div>
-               <Button variant="ghost" size="sm" className="text-orange-500 text-[10px] p-0 font-black">
+               <Button 
+                 variant="ghost" 
+                 size="sm" 
+                 className="text-orange-500 text-[10px] p-0 font-black hover:bg-transparent"
+                 onClick={() => setShowSimulator(true)}
+               >
                  SIMULAR COM OUTROS VALORES <ArrowRight size={12} className="ml-2" />
                </Button>
             </div>
@@ -372,62 +384,207 @@ export function GoalsView() {
 
       {/* Modal Metas */}
       <AnimatePresence>
+        {showSimulator && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[80]"
+              onClick={() => setShowSimulator(false)}
+            />
+            <motion.div 
+              initial={{ y: "100%", opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[480px] w-full bg-zinc-950 text-white rounded-t-[40px] md:rounded-[32px] p-8 z-[90] flex flex-col gap-8 shadow-2xl max-h-[92vh] overflow-y-auto outline-none"
+            >
+              {/* Mobile Drag Handle */}
+              <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto md:hidden -mt-2 mb-2" />
+
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <h2 className="text-2xl font-black tracking-tighter">Projeção Customizada</h2>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Simule o futuro do seu patrimônio</p>
+                </div>
+                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full text-zinc-500 hover:text-white transition-colors" onClick={() => setShowSimulator(false)}>
+                  <X size={20} />
+                </Button>
+              </div>
+
+              <div className="flex flex-col gap-8">
+                <div className="p-8 bg-gradient-to-br from-zinc-900 to-black rounded-[32px] border border-white/5 flex flex-col items-center justify-center text-center gap-2 shadow-inner relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 relative z-10">Resultado Estimado</span>
+                  <p className="text-5xl font-black text-orange-500 tracking-tighter relative z-10">
+                    {formatCurrency(calculateCompoundInterest(
+                      parseFloat(simInitial) || 0,
+                      parseFloat(simMonthly) || 0,
+                      parseFloat(simRate) || 0,
+                      parseFloat(simYears) || 0
+                    ))}
+                  </p>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter mt-1 italic relative z-10">
+                    Acumulado em {simYears} anos
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5">
+                  <div className="flex flex-col gap-2.5">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] px-1">Investimento Inicial</label>
+                    <Input 
+                      type="number"
+                      className="bg-white/5 border-white/10 text-white h-14 rounded-2xl focus:ring-orange-500/20" 
+                      placeholder="R$ 0,00" 
+                      value={simInitial}
+                      onChange={e => setSimInitial(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2.5">
+                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] px-1">Aporte Mensal</label>
+                    <Input 
+                      type="number"
+                      className="bg-white/5 border-white/10 text-white h-14 rounded-2xl focus:ring-orange-500/20" 
+                      placeholder="R$ 1.000,00" 
+                      value={simMonthly}
+                      onChange={e => setSimMonthly(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2.5">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] px-1">Taxa Anual (%)</label>
+                      <Input 
+                        type="number"
+                        className="bg-white/5 border-white/10 text-white h-14 rounded-2xl focus:ring-orange-500/20" 
+                        placeholder="12" 
+                        value={simRate}
+                        onChange={e => setSimRate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2.5">
+                      <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] px-1">Período (Anos)</label>
+                      <Input 
+                        type="number"
+                        className="bg-white/5 border-white/10 text-white h-14 rounded-2xl focus:ring-orange-500/20" 
+                        placeholder="5" 
+                        value={simYears}
+                        onChange={e => setSimYears(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 bg-orange-500/10 rounded-2xl border border-orange-500/20 flex gap-4 items-start">
+                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                    <Lightbulb size={20} className="text-orange-500" />
+                  </div>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Com uma taxa de 12% ao ano, seu patrimônio cresce exponencialmente. 
+                    <span className="text-orange-500 font-black block mt-1 uppercase tracking-tighter">O tempo é o combustível do investidor.</span>
+                  </p>
+                </div>
+
+                <Button onClick={() => setShowSimulator(false)} className="h-16 bg-white hover:bg-zinc-100 text-zinc-950 font-black rounded-2xl text-base shadow-xl active:scale-[0.98] transition-all">
+                  Concluir Simulação
+                </Button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Metas */}
+      <AnimatePresence>
         {showModal && (
           <>
             <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60]"
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
               onClick={() => setShowModal(false)}
             />
             <motion.div 
               initial={{ y: "100%", opacity: 0 }} 
               animate={{ y: 0, opacity: 1 }} 
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 w-full md:max-w-lg bg-white dark:bg-zinc-900 rounded-t-[40px] md:rounded-[40px] p-8 z-[70] flex flex-col gap-8 shadow-2xl max-h-[90vh] overflow-y-auto"
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 md:bottom-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[480px] w-full bg-white dark:bg-zinc-900 rounded-t-[40px] md:rounded-[32px] p-8 z-[70] flex flex-col gap-8 shadow-2xl max-h-[92vh] overflow-y-auto outline-none"
             >
+              {/* Mobile Drag Handle */}
+              <div className="w-12 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full mx-auto md:hidden -mt-2 mb-2" />
+
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tighter">
                     {editingId ? 'Ajustar Rota' : 'Novo Horizonte'}
                   </h2>
-                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">
-                    {editingId ? 'Refinando seus objetivos' : 'Adicione um novo sonho financeiro'}
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                    {editingId ? 'Refinando seus objetivos' : 'Planeje sua próxima conquista'}
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full" onClick={() => setShowModal(false)}>
-                  <X size={20} />
+                <Button variant="ghost" size="icon" className="w-10 h-10 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={() => setShowModal(false)}>
+                  <X size={20} className="text-zinc-500" />
                 </Button>
               </div>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] px-1">Título da Conquista</label>
-                  <Input placeholder="Ex: Lua de Mel na Grécia" value={title} onChange={e => setTitle(e.target.value)} required />
+                <div className="flex flex-col gap-2.5">
+                  <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">Título da Conquista</label>
+                  <Input 
+                    placeholder="Ex: Viagem para as Maldivas" 
+                    value={title} 
+                    onChange={e => setTitle(e.target.value)} 
+                    required 
+                    className="h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
+                  />
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   <div className="flex flex-col gap-2">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] px-1">Valor Almejado (Total)</label>
-                      <Input type="number" placeholder="R$ 0,00" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} required />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                   <div className="flex flex-col gap-2.5">
+                      <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">Valor Almejado</label>
+                      <Input 
+                        type="number" 
+                        placeholder="R$ 0,00" 
+                        value={targetAmount} 
+                        onChange={e => setTargetAmount(e.target.value)} 
+                        required 
+                        className="h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
+                      />
                    </div>
-                   <div className="flex flex-col gap-2">
-                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] px-1">Já Conquistado</label>
-                      <Input type="number" placeholder="R$ 0,00" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} required />
+                   <div className="flex flex-col gap-2.5">
+                      <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">Já Conquistado</label>
+                      <Input 
+                        type="number" 
+                        placeholder="R$ 0,00" 
+                        value={currentAmount} 
+                        onChange={e => setCurrentAmount(e.target.value)} 
+                        required 
+                        className="h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
+                      />
                    </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                   <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] px-1">Prazo Estimado</label>
-                   <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} required />
+                <div className="flex flex-col gap-2.5">
+                   <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">Prazo Estimado</label>
+                   <Input 
+                    type="date" 
+                    value={deadline} 
+                    onChange={e => setDeadline(e.target.value)} 
+                    required 
+                    className="h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700"
+                   />
                 </div>
 
-                <div className="pt-4 grid grid-cols-2 gap-3">
-                  <Button type="button" variant="ghost" onClick={() => setShowModal(false)} className="h-14">
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={loading} className="bg-orange-600 h-14 rounded-2xl text-sm font-black shadow-lg shadow-orange-600/20">
+                <div className="pt-4 flex flex-col gap-3">
+                  <Button type="submit" disabled={loading} className="bg-orange-600 hover:bg-orange-700 h-16 rounded-2xl text-base font-black text-white shadow-xl shadow-orange-600/20 active:scale-[0.98] transition-all">
                     {loading ? "Processando..." : (editingId ? "Salvar Alterações" : "Ativar Meta")}
+                  </Button>
+                  <Button type="button" variant="ghost" onClick={() => setShowModal(false)} className="h-12 text-zinc-500 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                    Cancelar
                   </Button>
                 </div>
               </form>
