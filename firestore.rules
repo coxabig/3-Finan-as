@@ -1,0 +1,192 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 27: Connectivity test
+    match /system/connectivity_test {
+      allow read: if true;
+    }
+
+    // --- ENTITY VALIDATORS ---
+
+    function isValidUser(data) {
+      let requiredFields = ['email', 'createdAt'];
+      let optionalFields = ['uid', 'revenue', 'coupleId', 'photoURL', 'displayName', 'updatedAt', 'onboarded', 'isPremium', 'darkMode', 'userColor', 'partnerColor'];
+      let allFields = requiredFields.concat(optionalFields);
+      
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
+             (data.get('revenue', 0) is number) &&
+             (data.get('onboarded', true) is bool) &&
+             (data.get('isPremium', false) is bool) &&
+             (data.get('darkMode', false) is bool) &&
+             (data.get('photoURL', null) == null || data.photoURL is string) &&
+             (data.get('displayName', null) == null || data.displayName is string) &&
+             (data.get('userColor', null) == null || data.userColor is string) &&
+             (data.get('partnerColor', null) == null || data.partnerColor is string) &&
+             data.createdAt is timestamp;
+    }
+
+    function isMember(coupleId, coupleData) {
+      return isSignedIn() && (
+        coupleData.user1 == request.auth.uid || 
+        coupleData.user2 == request.auth.uid
+      );
+    }
+
+    function isLinkedToCouple(coupleId) {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('coupleId', 'none') == coupleId;
+    }
+
+    function isValidCouple(data) {
+      return data.keys().hasAll(['user1', 'user2', 'createdAt', 'updatedAt']) &&
+             isValidId(data.user1) &&
+             (data.user2 == null || isValidId(data.user2)) &&
+             data.createdAt == request.time;
+    }
+
+    function isValidTransaction(data) {
+      let requiredFields = ['description', 'amount', 'type', 'ownerId', 'createdAt', 'month', 'date', 'frequency', 'responsibility'];
+      let optionalFields = ['installments', 'installmentIndex', 'parentId', 'category', 'updatedAt', 'cardId', 'startInstallmentIndex'];
+      let allFields = requiredFields.concat(optionalFields);
+      
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
+             data.description is string && data.description.size() <= 300 &&
+             data.amount is number &&
+             data.type in ['revenue', 'expense'] &&
+             isValidId(data.ownerId) &&
+             data.month is string && data.month.matches('^[0-9]{4}-[0-9]{2}$') &&
+             data.date is string &&
+             data.frequency in ['once', 'fixed', 'installments'] &&
+             data.responsibility is string &&
+             data.createdAt is timestamp &&
+             (data.get('cardId', null) == null || isValidId(data.cardId)) &&
+             (data.get('parentId', null) == null || isValidId(data.parentId)) &&
+             (data.get('category', null) == null || data.category is string) &&
+             (data.get('installments', null) == null || data.installments is int) &&
+             (data.get('installmentIndex', null) == null || data.installmentIndex is int) &&
+             (data.get('startInstallmentIndex', null) == null || data.startInstallmentIndex is int);
+    }
+
+    function isValidGoal(data) {
+      let requiredFields = ['title', 'targetAmount', 'currentAmount', 'coupleId', 'createdAt'];
+      let optionalFields = ['deadline', 'type', 'updatedAt'];
+      let allFields = requiredFields.concat(optionalFields);
+
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
+             data.title is string && data.title.size() <= 100 &&
+             data.targetAmount is number &&
+             data.currentAmount is number &&
+             isValidId(data.coupleId) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidCard(data) {
+      let requiredFields = ['name', 'lastDigits', 'limit', 'ownerId', 'createdAt'];
+      let optionalFields = ['updatedAt', 'color'];
+      let allFields = requiredFields.concat(optionalFields);
+
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.lastDigits is string && data.lastDigits.size() == 4 &&
+             data.limit is number &&
+             isValidId(data.ownerId) &&
+             data.createdAt is timestamp &&
+             (data.color == null || (data.color is string && data.color.size() <= 20));
+    }
+
+    function isValidCategory(data) {
+      let requiredFields = ['name', 'color', 'coupleId', 'createdAt'];
+      let optionalFields = ['updatedAt', 'iconName'];
+      let allFields = requiredFields.concat(optionalFields);
+
+      return data.keys().hasAll(requiredFields) &&
+             data.keys().hasOnly(allFields) &&
+             data.name is string && data.name.size() <= 64 &&
+             data.color is string && data.color.size() <= 32 &&
+             isValidId(data.coupleId) &&
+             data.createdAt is timestamp &&
+             (data.iconName == null || (data.iconName is string && data.iconName.size() <= 64));
+    }
+
+    // --- ROUTES ---
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        isOwner(userId) || 
+        (resource.data.get('coupleId', null) != null && resource.data.coupleId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('coupleId', 'none'))
+      );
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        // Action: Update user profile, settings or revenue
+        incoming().diff(existing()).affectedKeys().hasOnly(['revenue', 'displayName', 'photoURL', 'coupleId', 'onboarded', 'isPremium', 'darkMode', 'updatedAt', 'email', 'uid', 'userColor', 'partnerColor'])
+      );
+    }
+
+    match /couples/{coupleId} {
+      allow get: if isSignedIn();
+      allow list: if isMember(coupleId, resource.data) || isLinkedToCouple(coupleId);
+      allow create: if isSignedIn() && (incoming().user1 == request.auth.uid) && isValidCouple(incoming());
+      allow update: if isSignedIn() && (
+        // Action: Join Couple (Allowed even if not member yet, if user2 is null)
+        (existing().user2 == null && incoming().user2 == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['user2', 'updatedAt']) && incoming().updatedAt == request.time) ||
+        // Action: General update (Must be member)
+        ((isMember(coupleId, existing()) || isLinkedToCouple(coupleId)) && incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt']) && incoming().updatedAt == request.time)
+      );
+    }
+
+    function isMemberOfCouple(coupleId) {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('coupleId', 'none') == coupleId;
+    }
+
+    match /couples/{coupleId}/transactions/{txId} {
+      allow read, delete: if isMemberOfCouple(coupleId);
+      allow create, update: if isMemberOfCouple(coupleId) && isValidTransaction(incoming());
+    }
+
+    match /couples/{coupleId}/goals/{goalId} {
+      allow read, delete: if isMemberOfCouple(coupleId);
+      allow create, update: if isMemberOfCouple(coupleId) && isValidGoal(incoming());
+    }
+
+    match /couples/{coupleId}/cards/{cardId} {
+      allow read, delete: if isMemberOfCouple(coupleId);
+      allow create, update: if isMemberOfCouple(coupleId) && isValidCard(incoming());
+    }
+
+    match /couples/{coupleId}/categories/{catId} {
+      allow read, delete: if isMemberOfCouple(coupleId);
+      allow create, update: if isMemberOfCouple(coupleId) && isValidCategory(incoming());
+    }
+  }
+}

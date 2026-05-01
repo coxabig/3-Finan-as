@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "revenue": { "type": "number" },
+        "coupleId": { "type": "string" },
+        "onboarded": { "type": "boolean" },
+        "isPremium": { "type": "boolean" },
+        "darkMode": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Card": {
+      "title": "Credit Card",
+      "description": "Credit card information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "lastDigits": { "type": "string" },
+        "limit": { "type": "number" },
+        "color": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "lastDigits", "limit", "ownerId"]
+    },
+    "Couple": {
+      "title": "Couple Space",
+      "description": "Shared space for two users",
+      "type": "object",
+      "properties": {
+        "user1": { "type": "string" },
+        "user2": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["user1"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Revenue or Expense record",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string" },
+        "month": { "type": "string" },
+        "type": { "type": "string", "enum": ["revenue", "expense"] },
+        "ownerId": { "type": "string" },
+        "responsibility": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["once", "fixed", "installments"] },
+        "installments": { "type": "integer" },
+        "installmentIndex": { "type": "integer" },
+        "parentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["description", "amount", "type", "ownerId"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Financial goal for the couple",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "deadline": { "type": "string" },
+        "coupleId": { "type": "string" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "targetAmount", "currentAmount", "coupleId"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Custom category for transaction classification",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "color": { "type": "string" },
+        "coupleId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "color", "coupleId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/couples/{coupleId}": {
+      "schema": "Couple",
+      "description": "Couple shared spaces"
+    },
+    "/couples/{coupleId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transactions belonging to a couple"
+    },
+    "/couples/{coupleId}/goals/{goalId}": {
+      "schema": "Goal",
+      "description": "Goals belonging to a couple"
+    },
+    "/couples/{coupleId}/cards/{cardId}": {
+      "schema": "Card",
+      "description": "Credit cards belonging to a couple"
+    },
+    "/couples/{coupleId}/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Custom categories belonging to a couple"
+    }
+  }
+}
