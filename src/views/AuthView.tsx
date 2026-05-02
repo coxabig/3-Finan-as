@@ -9,7 +9,9 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
-  GoogleAuthProvider
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { Button, Card, Input } from '../components/ui';
@@ -66,7 +68,45 @@ export function AuthView() {
         const domain = window.location.hostname;
         setError(`Domínio não autorizado: ${domain}. Adicione este domínio no console do Firebase (Authentication > Settings > Authorized domains).`);
       } else {
-        setError(`Erro: ${err.message}`);
+        setError(`Erro Google: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const provider = new FacebookAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      console.error("Facebook Login Error:", err.code, err.message);
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('O login com Facebook não está ativado no Firebase Console.');
+      } else {
+        setError(`Erro Facebook: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+    try {
+      const provider = new OAuthProvider('apple.com');
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      console.error("Apple Login Error:", err.code, err.message);
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('O login com Apple não está ativado no Firebase Console.');
+      } else {
+        setError(`Erro Apple: ${err.message}`);
       }
     } finally {
       setLoading(false);
@@ -134,24 +174,52 @@ export function AuthView() {
           </h2>
 
           <div className="flex flex-col gap-4">
-            <Button 
-              variant="outline" 
-              className="w-full flex items-center justify-center gap-2 font-bold py-6 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98]"
-              onClick={handleGoogleLogin}
-              disabled={loading}
-            >
-              {loading && mode === 'login' && !email ? (
-                <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
-              ) : (
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-              )}
-              {loading && mode === 'login' && !email ? 'Conectando...' : 'Entrar com Google'}
-            </Button>
+            <div className="grid grid-cols-1 gap-3">
+              <Button 
+                variant="outline" 
+                className="w-full flex items-center justify-center gap-2 font-bold py-6 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                onClick={() => handleGoogleLogin(false)}
+                disabled={loading}
+              >
+                {loading && mode === 'login' && !email ? (
+                  <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                )}
+                {loading && mode === 'login' && !email ? 'Conectando...' : 'Google'}
+              </Button>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  variant="outline" 
+                  className="flex items-center justify-center gap-2 font-bold py-6 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                  onClick={handleFacebookLogin}
+                  disabled={loading}
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.248h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                  <span>Facebook</span>
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  className="flex items-center justify-center gap-2 font-bold py-6 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98]"
+                  onClick={handleAppleLogin}
+                  disabled={loading}
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.057 10.78c-.01 2.3 1.934 3.403 2.017 3.453-.015.053-.314 1.077-1.032 2.124-.62.906-1.264 1.81-2.274 1.828-1.008.018-1.287-.594-2.436-.594-1.15 0-1.464.577-2.436.612-.97.035-1.706-.976-2.328-1.882-1.272-1.847-2.24-5.213-.935-7.48.647-1.127 1.808-1.84 3.064-1.858 1.007-.018 1.96.678 2.573.678.614 0 1.764-.84 2.97-.716.505.022 1.925.203 2.836 1.536-.073.044-1.69.986-1.707 2.952m-2.702-6.52c.548-.663.916-1.583.815-2.5a2.531 2.531 0 00-1.616.83c-.482.557-.904 1.487-.791 2.39.638.048 1.493-.45 2.149-.72"/>
+                  </svg>
+                  <span>Apple</span>
+                </Button>
+              </div>
+            </div>
 
             <div className="flex items-center gap-4 my-2">
               <div className="flex-1 h-px bg-zinc-100 dark:bg-zinc-800" />
