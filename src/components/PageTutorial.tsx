@@ -13,6 +13,40 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
   const hasStarted = useRef(false);
 
   useEffect(() => {
+    // Escuta evento global para reiniciar o tutorial se solicitado pelo usuário
+    const handleRestart = (e: any) => {
+      if (e.detail?.pageId === pageId) {
+        startTutorial();
+      }
+    };
+    window.addEventListener('restart-tutorial', handleRestart);
+    return () => window.removeEventListener('restart-tutorial', handleRestart);
+  }, [pageId]);
+
+  const startTutorial = () => {
+    const driverObj = driver({
+      showProgress: true,
+      allowClose: true,
+      overlayColor: '#000',
+      overlayOpacity: 0.75,
+      steps: steps.map(step => ({
+        ...step,
+        popover: {
+          ...step.popover,
+          nextBtnText: 'Próximo',
+          prevBtnText: 'Anterior',
+          doneBtnText: 'Entendi!',
+        }
+      })),
+      onDestroyed: () => {
+        markTutorialAsSeen(pageId);
+      }
+    });
+
+    driverObj.drive();
+  };
+
+  useEffect(() => {
     if (loading || !userProfile || hasStarted.current) return;
 
     // Se o usuário já viu este tutorial, não mostramos novamente automaticamente
@@ -21,26 +55,10 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
     if (autoStart) {
       hasStarted.current = true;
       
-      const driverObj = driver({
-        showProgress: true,
-        steps: steps.map(step => ({
-          ...step,
-          popover: {
-            ...step.popover,
-            nextBtnText: 'Próximo',
-            prevBtnText: 'Anterior',
-            doneBtnText: 'Entendi!',
-          }
-        })),
-        onDestroyed: () => {
-          markTutorialAsSeen(pageId);
-        }
-      });
-
       // Pequeno delay para garantir que o DOM esteja pronto e animações concluídas
       const timer = setTimeout(() => {
-        driverObj.drive();
-      }, 1000);
+        startTutorial();
+      }, 1500);
 
       return () => clearTimeout(timer);
     }

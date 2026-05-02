@@ -213,6 +213,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                   onboarded: false,
                   isPremium: false,
                   darkMode: false,
+                  tutorialsSeen: [],
                   createdAt: serverTimestamp()
                 });
               } catch (err) {

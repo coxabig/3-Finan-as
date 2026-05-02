@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button, Input } from '../components/ui';
-import { User, CreditCard, Bell, Moon, LogOut, ChevronRight, X, Palette } from 'lucide-react';
+import { User, CreditCard, Bell, Moon, LogOut, ChevronRight, X, Palette, HelpCircle, RefreshCw } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
@@ -18,6 +18,15 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
   const { userProfile, partnerProfile, toggleDarkMode, updateSubscription, updateProfileColors } = useFinance();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
+  const restartTutorial = (pageId: string) => {
+    // Dispara evento global que o PageTutorial de cada página está ouvindo
+    const event = new CustomEvent('restart-tutorial', { detail: { pageId } });
+    window.dispatchEvent(event);
+    
+    // O usuário precisa estar na página para ver o tutorial, então redirecionamos
+    onNavigate(pageId);
+  };
+
   return (
     <div className="flex flex-col gap-8 pb-32">
       <div className="flex items-center gap-6 p-4">
@@ -33,23 +42,57 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-4">
           <h3 className="font-black text-[10px] uppercase tracking-[0.3em] text-zinc-400 px-4">Minha Conta</h3>
-          <Card 
-            onClick={() => onNavigate('account-settings')}
-            className="p-6 flex items-center justify-between group hover:border-zinc-200 dark:hover:border-zinc-700 transition-all cursor-pointer bg-white dark:bg-zinc-900/50 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800"
-          >
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-all">
-                  <User className="w-6 h-6" />
+          <div className="flex flex-col gap-3">
+            <Card 
+              onClick={() => onNavigate('account-settings')}
+              className="p-6 flex items-center justify-between group hover:border-zinc-200 dark:hover:border-zinc-700 transition-all cursor-pointer bg-white dark:bg-zinc-900/50 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800"
+            >
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-all">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="font-black text-base block text-zinc-900 dark:text-white">Informações Pessoais</span>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Nome, E-mail e Senha segura</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-black text-base block text-zinc-900 dark:text-white">Informações Pessoais</span>
-                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Nome, E-mail e Senha segura</p>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-zinc-900 transition-all">
+                  <ChevronRight className="w-5 h-5" />
                 </div>
-              </div>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-zinc-900 transition-all">
-                <ChevronRight className="w-5 h-5" />
-              </div>
-          </Card>
+            </Card>
+
+            <Card 
+              className="p-6 flex flex-col gap-6 bg-white dark:bg-zinc-900/50 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800"
+            >
+                <div className="flex items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-orange-600">
+                    <HelpCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="font-black text-base block text-zinc-900 dark:text-white">Tutoriais de Uso</span>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Rever guia das telas principais</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {[
+                    { id: 'dashboard', label: 'Dashboard' },
+                    { id: 'planning', label: 'Planejamento' },
+                    { id: 'invoices', label: 'Faturas' },
+                    { id: 'credit-cards', label: 'Meus Cartões' },
+                  ].map(t => (
+                    <button 
+                      key={t.id}
+                      onClick={() => restartTutorial(t.id)}
+                      className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all group"
+                    >
+                      <span className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white tracking-widest">{t.label}</span>
+                      <RefreshCw size={12} className="text-zinc-300 group-hover:text-orange-500 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+            </Card>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4">
