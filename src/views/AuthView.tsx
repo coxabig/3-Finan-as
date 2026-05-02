@@ -188,16 +188,16 @@ export function AuthView() {
               {error && (
                 <div className="flex flex-col gap-2">
                   <p className="text-red-500 text-sm font-medium">{error}</p>
-                  {mode === 'login' && !email && (
+                  {error.toLowerCase().includes('google') || error.toLowerCase().includes('pop-up') || error.toLowerCase().includes('erro') ? (
                     <Button 
                       variant="ghost" 
                       size="sm" 
                       onClick={() => handleGoogleLogin(true)}
-                      className="text-orange-600 font-bold hover:bg-orange-50 text-[10px] uppercase tracking-wider"
+                      className="text-orange-600 font-bold hover:bg-orange-50 text-[10px] uppercase tracking-wider h-auto py-2"
                     >
-                      Tentar com redirecionamento
+                      Problemas com o pop-up? Tentar Redirecionamento
                     </Button>
-                  )}
+                  ) : null}
                 </div>
               )}
               {success && <p className="text-emerald-500 text-sm font-medium">{success}</p>}
