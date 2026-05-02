@@ -17,7 +17,7 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
 import { handleFirestoreError, OperationType } from './lib/firestore-errors';
-import { Transaction, TransactionType, UserProfile, Couple, FrequencyType, Goal, Card, Category } from './types';
+import { Transaction, TransactionType, UserProfile, Couple, FrequencyType, Goal, Card, Category, BankAccount } from './types';
 import { format, addMonths, parseISO } from 'date-fns';
 
 interface FinanceContextType {
@@ -28,6 +28,7 @@ interface FinanceContextType {
   allTransactions: Transaction[];
   goals: Goal[];
   cards: Card[];
+  accounts: BankAccount[];
   categories: Category[];
   cardSummaries: (Card & { invoiceTotal: number })[];
   loading: boolean;
@@ -44,6 +45,9 @@ interface FinanceContextType {
   addCard: (data: Partial<Card>) => Promise<void>;
   updateCard: (id: string, data: Partial<Card>) => Promise<void>;
   removeCard: (id: string) => Promise<void>;
+  addAccount: (data: Partial<BankAccount>) => Promise<void>;
+  updateAccount: (id: string, data: Partial<BankAccount>) => Promise<void>;
+  removeAccount: (id: string) => Promise<void>;
   addCategory: (data: Partial<Category>) => Promise<void>;
   updateCategory: (id: string, data: Partial<Category>) => Promise<void>;
   removeCategory: (id: string) => Promise<void>;
@@ -69,6 +73,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +95,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     let unsubscribeAllTransactions: (() => void) | null = null;
     let unsubscribeGoals: (() => void) | null = null;
     let unsubscribeCards: (() => void) | null = null;
+    let unsubscribeAccounts: (() => void) | null = null;
     let unsubscribeCategories: (() => void) | null = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -101,6 +107,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (unsubscribeAllTransactions) { unsubscribeAllTransactions(); unsubscribeAllTransactions = null; }
       if (unsubscribeGoals) { unsubscribeGoals(); unsubscribeGoals = null; }
       if (unsubscribeCards) { unsubscribeCards(); unsubscribeCards = null; }
+      if (unsubscribeAccounts) { unsubscribeAccounts(); unsubscribeAccounts = null; }
       if (unsubscribeCategories) { unsubscribeCategories(); unsubscribeCategories = null; }
 
       if (user) {
@@ -182,6 +189,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                   handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/cards`);
                 });
 
+                // Listener de Contas Bancárias
+                if (unsubscribeAccounts) unsubscribeAccounts();
+                unsubscribeAccounts = onSnapshot(collection(db, 'couples', profile.coupleId, 'accounts'), (snapshot) => {
+                  setAccounts(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as BankAccount[]);
+                }, (err) => {
+                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/accounts`);
+                });
+
                 // Listener de Categorias
                 if (unsubscribeCategories) unsubscribeCategories();
                 unsubscribeCategories = onSnapshot(collection(db, 'couples', profile.coupleId, 'categories'), (snapshot) => {
@@ -249,6 +264,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (unsubscribeAllTransactions) unsubscribeAllTransactions();
       if (unsubscribeGoals) unsubscribeGoals();
       if (unsubscribeCards) unsubscribeCards();
+      if (unsubscribeAccounts) unsubscribeAccounts();
       if (unsubscribeCategories) unsubscribeCategories();
     };
   }, [selectedMonth]);
@@ -603,6 +619,41 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addAccount = async (data: Partial<BankAccount>) => {
+    if (!userProfile?.coupleId) return;
+    try {
+      const cleanData = sanitizeData(data);
+      await addDoc(collection(db, 'couples', userProfile.coupleId, 'accounts'), {
+        ...cleanData,
+        createdAt: serverTimestamp()
+      });
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.CREATE, `couples/${userProfile.coupleId}/accounts`);
+    }
+  };
+
+  const updateAccount = async (id: string, data: Partial<BankAccount>) => {
+    if (!userProfile?.coupleId) return;
+    try {
+      const cleanData = sanitizeData(data);
+      await updateDoc(doc(db, 'couples', userProfile.coupleId, 'accounts', id), {
+        ...cleanData,
+        updatedAt: serverTimestamp()
+      });
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.UPDATE, `couples/${userProfile.coupleId}/accounts/${id}`);
+    }
+  };
+
+  const removeAccount = async (id: string) => {
+    if (!userProfile?.coupleId) return;
+    try {
+      await deleteDoc(doc(db, 'couples', userProfile.coupleId, 'accounts', id));
+    } catch (err: any) {
+      handleFirestoreError(err, OperationType.DELETE, `couples/${userProfile.coupleId}/accounts/${id}`);
+    }
+  };
+
   const addCategory = async (data: Partial<Category>) => {
     if (!userProfile?.coupleId) return;
     try {
@@ -730,6 +781,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       allTransactions,
       goals,
       cards,
+      accounts,
       categories,
       cardSummaries,
       loading,
@@ -746,6 +798,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       addCard,
       updateCard,
       removeCard,
+      addAccount,
+      updateAccount,
+      removeAccount,
       addCategory,
       updateCategory,
       removeCategory,

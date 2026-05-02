@@ -80,6 +80,7 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
                     { id: 'planning', label: 'Planejamento' },
                     { id: 'invoices', label: 'Faturas' },
                     { id: 'credit-cards', label: 'Meus Cartões' },
+                    { id: 'bank-accounts', label: 'Minhas Contas' },
                   ].map(t => (
                     <button 
                       key={t.id}

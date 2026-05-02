@@ -17,7 +17,8 @@ import {
   Settings,
   Bell,
   X,
-  BarChart3
+  BarChart3,
+  Landmark
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, Card, Input } from './components/ui';
@@ -33,6 +34,7 @@ import { FamilyView } from './views/FamilyView';
 import { ProfileView } from './views/ProfileView';
 import { SummaryView } from './views/SummaryView';
 import { CategoriesView } from './views/CategoriesView';
+import { BankAccountsView } from './views/BankAccountsView';
 import { AccountSettingsView } from './views/AccountSettingsView';
 import { AuthView } from './views/AuthView';
 import { OnboardingView } from './views/OnboardingView';
@@ -93,6 +95,7 @@ function AppShell() {
       case 'planning': return <PlanningView />;
       case 'invoices': return <InvoicesView />;
       case 'credit-cards': return <CreditCardsView />;
+      case 'bank-accounts': return <BankAccountsView />;
       case 'summaries': return <SummaryView />;
       case 'goals': return <GoalsView />;
       case 'family': return <FamilyView />;
@@ -110,8 +113,9 @@ function AppShell() {
   ];
 
   const sideItems = [
-    { id: 'credit-cards', icon: CreditCard, label: 'Cartões' },
     { id: 'summaries', icon: BarChart3, label: 'Resumos' },
+    { id: 'bank-accounts', icon: Landmark, label: 'Contas' },
+    { id: 'credit-cards', icon: CreditCard, label: 'Cartões' },
     { id: 'goals', icon: Target, label: 'Metas' },
     { id: 'categories', icon: Tag, label: 'Categorias' },
     { id: 'family', icon: Users, label: 'Família' },

@@ -49,6 +49,7 @@ service cloud.firestore {
       match /transactions/{id} { allow read, write: if isMemberOfCouple(coupleId); }
       match /goals/{id} { allow read, write: if isMemberOfCouple(coupleId); }
       match /cards/{id} { allow read, write: if isMemberOfCouple(coupleId); }
+      match /accounts/{id} { allow read, write: if isMemberOfCouple(coupleId); }
       match /categories/{id} { allow read, write: if isMemberOfCouple(coupleId); }
     }
   }

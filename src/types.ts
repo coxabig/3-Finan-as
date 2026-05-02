@@ -78,3 +78,13 @@ export interface Goal {
   coupleId: string;
   type: string;
 }
+
+export interface BankAccount {
+  id: string;
+  name: string;
+  ownerId: string;
+  balance: number;
+  color?: string;
+  bankName?: string;
+  createdAt?: any;
+}

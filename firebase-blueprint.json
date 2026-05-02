@@ -95,6 +95,21 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "color", "coupleId"]
+    },
+    "BankAccount": {
+      "title": "Bank Account",
+      "description": "Checking or savings bank account",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "bankName": { "type": "string" },
+        "balance": { "type": "number" },
+        "color": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "balance", "ownerId"]
     }
   },
   "firestore": {
@@ -117,6 +132,10 @@
     "/couples/{coupleId}/cards/{cardId}": {
       "schema": "Card",
       "description": "Credit cards belonging to a couple"
+    },
+    "/couples/{coupleId}/accounts/{accountId}": {
+      "schema": "BankAccount",
+      "description": "Bank accounts belonging to a couple"
     },
     "/couples/{coupleId}/categories/{categoryId}": {
       "schema": "Category",
