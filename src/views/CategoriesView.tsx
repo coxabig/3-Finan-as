@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button, Input } from '../components/ui';
 import { 
   Tag, 
   Plus, 
   Trash2, 
+  Pencil,
   X, 
   Check,
   Palette
@@ -13,6 +14,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Category } from '../types';
 import { getCategoryIcon, ALL_ICONS } from '../lib/category-icons';
+import { PageTutorial } from '../components/PageTutorial';
 
 import { SwipeableItem } from '../components/SwipeableItem';
 
@@ -31,6 +33,18 @@ const CATEGORY_COLORS = [
 
 export function CategoriesView() {
   const { categories, addCategory, updateCategory, removeCategory, seedInitialCategories } = useFinance();
+
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -76,7 +90,14 @@ export function CategoriesView() {
 
   return (
     <div className="flex flex-col gap-8 pb-32">
-      <div className="flex items-center justify-between">
+      <PageTutorial 
+        pageId="categories"
+        steps={[
+          { element: '#category-header', popover: { title: 'Categorias', description: 'Organize suas despesas criando categorias personalizadas. Nossa IA sugere ícones automaticamente!' } },
+          { element: '#category-grid', popover: { title: 'Sua Lista', description: 'Clique para editar ou deslize para remover suas categorias.' } },
+        ]}
+      />
+      <div id="category-header" className="flex items-center justify-between">
         <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 dark:text-white">Categorias</h2>
         <Button onClick={() => setShowAddModal(true)} variant="primary" className="gap-2">
           <Plus size={18} />
@@ -84,7 +105,7 @@ export function CategoriesView() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div id="category-grid" className="grid grid-cols-1 gap-4">
         {categories.length === 0 && (
           <Card className="p-12 border-dashed border-2 flex flex-col items-center gap-4 text-center bg-zinc-50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800">
             <Tag className="w-12 h-12 text-zinc-200 dark:text-zinc-800" />
@@ -107,9 +128,10 @@ export function CategoriesView() {
                 onEdit={() => openEdit(cat)}
                 onDelete={() => removeCategory(cat.id)}
                 className="w-full"
+                disabled={isDesktop}
               >
-                <Card className="p-4 flex items-center justify-between group bg-white dark:bg-zinc-900/50 border border-zinc-200/50 ring-1 ring-zinc-200/20 dark:ring-zinc-800 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)]">
-                  <div className="flex items-center gap-4">
+                <Card className="flex items-center justify-between group bg-white dark:bg-zinc-900/50 border border-zinc-200/50 ring-1 ring-zinc-200/20 dark:ring-zinc-800 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] overflow-hidden">
+                  <div className="flex-1 p-4 flex items-center gap-4">
                     <div 
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-black/10 dark:shadow-black/40"
                       style={{ backgroundColor: cat.color }}
@@ -124,6 +146,28 @@ export function CategoriesView() {
                       <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">{cat.color}</p>
                     </div>
                   </div>
+
+                  {/* Desktop Actions for Category */}
+                  {isDesktop && (
+                    <div className="flex items-center gap-2 pr-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => openEdit(cat)}
+                        className="w-9 h-9 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeCategory(cat.id)}
+                        className="w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-900/20 text-rose-500 hover:bg-rose-600 hover:text-white"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               </SwipeableItem>
             ))}

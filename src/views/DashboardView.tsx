@@ -9,6 +9,7 @@ import { getCategoryIcon } from '../lib/category-icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { MonthSelector } from '../components/MonthSelector';
+import { PageTutorial } from '../components/PageTutorial';
 
 import { TransactionType } from '../types';
 
@@ -68,15 +69,28 @@ export function DashboardView() {
 
   return (
     <div className="flex flex-col gap-8">
-      <MonthSelector />
+      <PageTutorial 
+        pageId="dashboard"
+        steps={[
+          { element: '#month-selector', popover: { title: 'Seletor de Mês', description: 'Navegue entre os meses para ver seu histórico financeiro.' } },
+          { element: '#balance-card', popover: { title: 'Saldo Combinado', description: 'Aqui você vê o quanto sobra para o casal após todas as despesas.' } },
+          { element: '#economy-stat', popover: { title: 'Economia do Mês', description: 'Acompanhe em tempo real quanto da sua renda total ainda está disponível.' } },
+          { element: '#proportional-division', popover: { title: 'Divisão de Contas', description: 'Nossa IA calcula automaticamente quanto cada um deve contribuir com base na renda.' } },
+          { element: '#category-spending', popover: { title: 'Gastos por Categoria', description: 'Veja onde vocês estão gastando mais e clique para detalhar.' } },
+        ]}
+      />
+      <div id="month-selector">
+        <MonthSelector />
+      </div>
 
       {/* Main Balance Card */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card 
-          onClick={() => setExpandedCard(expandedCard === 'main' ? null : 'main')}
-          className="lg:col-span-2 bg-zinc-900 border-none p-8 sm:p-12 text-white relative overflow-hidden group shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_60px_rgba(0,0,0,1)] ring-1 ring-zinc-800 cursor-pointer transition-all active:scale-[0.98]"
-        >
-        <div className="relative z-10 flex flex-col items-center sm:items-start text-center sm:text-left w-full">
+        <div id="balance-card" className="lg:col-span-2">
+          <Card 
+            onClick={() => setExpandedCard(expandedCard === 'main' ? null : 'main')}
+            className="w-full bg-zinc-900 border-none p-8 sm:p-12 text-white relative overflow-hidden group shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_60px_rgba(0,0,0,1)] ring-1 ring-zinc-800 cursor-pointer transition-all active:scale-[0.98]"
+          >
+          <div className="relative z-10 flex flex-col items-center sm:items-start text-center sm:text-left w-full">
           <div className="flex items-center justify-between w-full">
             <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.3em] mb-4">Saldo Combinado</p>
             <ChevronDown className={cn("text-zinc-500 transition-transform duration-300", expandedCard === 'main' ? 'rotate-180' : '')} size={16} />
@@ -134,12 +148,14 @@ export function DashboardView() {
         {/* Decorative elements for "Good Quality" look */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600 rounded-full blur-[100px] opacity-20 -mr-32 -mt-32 transition-all duration-700 group-hover:opacity-40 group-hover:scale-110" />
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-600 rounded-full blur-[80px] opacity-10 -ml-16 -mb-16" />
-      </Card>
+        </Card>
+      </div>
 
       {/* Quick Visual Stats */}
       <div className="lg:col-span-1 flex flex-col gap-4">
-         <Card className="h-full p-6 sm:p-8 flex flex-col justify-center">
-            <div className="flex justify-between items-end mb-6">
+         <div id="economy-stat" className="h-full">
+           <Card className="h-full p-6 sm:p-8 flex flex-col justify-center">
+              <div className="flex justify-between items-end mb-6">
               <div>
                 <p className="text-zinc-400 text-[10px] uppercase font-bold tracking-widest mb-1">Economia do Mês</p>
                 <p className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white">{(100 - (totals.expenses / (totals.revenue || 1)) * 100).toFixed(0)}% <span className="text-sm font-normal text-zinc-500 italic">restante</span></p>
@@ -153,11 +169,12 @@ export function DashboardView() {
               />
             </div>
          </Card>
+        </div>
       </div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
         {/* Proportionality Breakdown */}
-        <div className="flex flex-col gap-6">
+        <div id="proportional-division" className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-6 bg-orange-600 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.3)]"></div>
             <h3 className="font-black text-xs uppercase tracking-[0.2em] text-zinc-400">Divisão Proporcional</h3>
@@ -307,7 +324,7 @@ export function DashboardView() {
         </div>
 
         {/* Spending by Category */}
-        <div className="flex flex-col gap-6">
+        <div id="category-spending" className="flex flex-col gap-6">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-orange-500 rounded-full"></div>
             <h3 className="font-black text-xs uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Gastos por Categoria</h3>

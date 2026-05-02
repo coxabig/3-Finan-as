@@ -26,7 +26,8 @@ import { cn } from './lib/utils';
 // Views
 import { DashboardView } from './views/DashboardView';
 import { PlanningView } from './views/PlanningView';
-import { CardsView } from './views/CardsView';
+import { InvoicesView } from './views/CardsView';
+import { CreditCardsView } from './views/CreditCardsView';
 import { GoalsView } from './views/GoalsView';
 import { FamilyView } from './views/FamilyView';
 import { ProfileView } from './views/ProfileView';
@@ -90,7 +91,8 @@ function AppShell() {
     switch (currentView) {
       case 'dashboard': return <DashboardView />;
       case 'planning': return <PlanningView />;
-      case 'cards': return <CardsView />;
+      case 'invoices': return <InvoicesView />;
+      case 'credit-cards': return <CreditCardsView />;
       case 'summaries': return <SummaryView />;
       case 'goals': return <GoalsView />;
       case 'family': return <FamilyView />;
@@ -104,10 +106,11 @@ function AppShell() {
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Resumo' },
     { id: 'planning', icon: LayoutList, label: 'Planejamento' },
-    { id: 'cards', icon: CreditCard, label: 'Cartões' },
+    { id: 'invoices', icon: CreditCard, label: 'Faturas' },
   ];
 
   const sideItems = [
+    { id: 'credit-cards', icon: CreditCard, label: 'Cartões' },
     { id: 'summaries', icon: BarChart3, label: 'Resumos' },
     { id: 'goals', icon: Target, label: 'Metas' },
     { id: 'categories', icon: Tag, label: 'Categorias' },

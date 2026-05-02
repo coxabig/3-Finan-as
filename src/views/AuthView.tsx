@@ -5,6 +5,7 @@ import {
   createUserWithEmailAndPassword, 
   sendPasswordResetEmail,
   updateProfile,
+  sendEmailVerification,
   signInWithPopup,
   GoogleAuthProvider
 } from 'firebase/auth';
@@ -19,9 +20,11 @@ export function AuthView() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
 
   const handleGoogleLogin = async () => {
     setError('');
+    setSuccess('');
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
@@ -38,6 +41,7 @@ export function AuthView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
@@ -46,11 +50,16 @@ export function AuthView() {
       } else if (mode === 'register') {
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCred.user, { displayName: name });
-        // Logic for document creation is already in FinanceProvider's onSnapshot
+        
+        // Send email verification immediately
+        await sendEmailVerification(userCred.user);
+        setSuccess('Conta criada! Enviamos um link de verificação para seu e-mail. Por favor, verifique-o antes de continuar.');
+        // Wait a bit to show the message before (optionally) continuing, 
+        // though Firebase Auth will keep them logged in.
       } else {
         await sendPasswordResetEmail(auth, email);
-        alert('E-mail de recuperação enviado!');
-        setMode('login');
+        setSuccess('E-mail de recuperação enviado! Verifique sua caixa de entrada e spam.');
+        setTimeout(() => setMode('login'), 3000);
       }
     } catch (err: any) {
       console.error("Auth Error:", err.code, err.message);
@@ -138,9 +147,10 @@ export function AuthView() {
               )}
 
               {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+              {success && <p className="text-emerald-500 text-sm font-medium">{success}</p>}
 
               <Button type="submit" className="w-full mt-2" disabled={loading}>
-                {loading ? 'Processando...' : mode === 'login' ? 'Entrar' : mode === 'register' ? 'Cadastrar' : 'Enviar'}
+                {loading ? 'Processando...' : mode === 'login' ? 'Entrar' : mode === 'register' ? 'Cadastrar e Verificar' : 'Enviar Link de Recuperação'}
               </Button>
             </form>
           </div>
@@ -148,13 +158,57 @@ export function AuthView() {
           <div className="flex flex-col gap-2 items-center text-sm">
             {mode === 'login' ? (
               <>
-                <button onClick={() => setMode('register')} className="text-orange-600 font-bold hover:underline underline-offset-4">Não tem uma conta? Cadastre-se</button>
-                <button onClick={() => setMode('forgot')} className="text-zinc-400 hover:text-zinc-600">Esqueci minha senha</button>
+                <button 
+                  onClick={() => {
+                    setMode('register');
+                    setError('');
+                    setSuccess('');
+                  }} 
+                  className="text-orange-600 font-bold hover:underline underline-offset-4"
+                >
+                  Não tem uma conta? Cadastre-se
+                </button>
+                <button 
+                  onClick={() => {
+                    setMode('forgot');
+                    setError('');
+                    setSuccess('');
+                  }} 
+                  className="text-zinc-400 hover:text-zinc-600"
+                >
+                  Esqueci minha senha
+                </button>
               </>
             ) : mode === 'register' ? (
-              <button onClick={() => setMode('login')} className="text-orange-600 font-bold hover:underline underline-offset-4">Já tem uma conta? Faça login</button>
+              <button 
+                onClick={() => {
+                  setMode('login');
+                  setError('');
+                  setSuccess('');
+                }} 
+                className="text-orange-600 font-bold hover:underline underline-offset-4"
+              >
+                Já tem uma conta? Faça login
+              </button>
             ) : (
-              <button onClick={() => setMode('login')} className="text-orange-600 font-bold hover:underline underline-offset-4">Voltar para login</button>
+              <div className="flex flex-col items-center gap-3 w-full">
+                <button 
+                  onClick={() => {
+                    setMode('login');
+                    setError('');
+                    setSuccess('');
+                  }} 
+                  className="text-orange-600 font-bold hover:underline underline-offset-4"
+                >
+                  Voltar para login
+                </button>
+                <div className="border-t border-zinc-100 dark:border-zinc-800 w-full mt-4 pt-4 text-center">
+                  <p className="text-[10px] text-zinc-400 uppercase font-black mb-2 tracking-widest">Outras formas de acesso</p>
+                  <p className="text-xs text-zinc-500 mb-3 px-4">
+                    Se você criou sua conta usando o Google, basta clicar no botão "Entrar com Google" acima para recuperar o acesso instantaneamente.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         </Card>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button, Input } from '../components/ui';
 import { Plus, X, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, CreditCard, Tag, ChevronDown } from 'lucide-react';
@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { MonthSelector } from '../components/MonthSelector';
 import { getCategoryIcon } from '../lib/category-icons';
+import { PageTutorial } from '../components/PageTutorial';
 
 import { SwipeableItem } from '../components/SwipeableItem';
 
@@ -24,6 +25,17 @@ export function PlanningView() {
   
   const userColor = COLORS.find(c => c.name === userProfile?.userColor) || COLORS[1];
   const partnerColor = COLORS.find(c => c.name === userProfile?.partnerColor) || COLORS[5];
+
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
 
   const [showModal, setShowModal] = useState<TransactionType | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -236,10 +248,18 @@ export function PlanningView() {
 
   return (
     <div className="flex flex-col gap-6 relative">
+      <PageTutorial 
+        pageId="planning"
+        steps={[
+          { element: '#summary-header', popover: { title: 'Fluxo Mensal', description: 'Veja um resumo rápido de tudo que entra e sai no seu mês.' } },
+          { element: '#transaction-lists', popover: { title: 'Suas Transações', description: 'Lista detalhada de entradas e saídas. Deslize para editar ou excluir.' } },
+          { element: '#add-buttons', popover: { title: 'Novos Lançamentos', description: 'Use o botão verde para receitas e o vermelho para despesas.' } },
+        ]}
+      />
       <MonthSelector />
       
       {/* Summary Header */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+      <div id="summary-header" className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div 
           onClick={() => setExpandedSummary(expandedSummary === 'rev' ? null : 'rev')}
           className="bg-white dark:bg-zinc-900/40 border border-emerald-100/50 dark:border-emerald-900/30 rounded-[32px] p-6 sm:p-8 flex flex-col gap-4 group shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-emerald-950/5 cursor-pointer active:scale-[0.99] transition-all overflow-hidden"
@@ -352,7 +372,7 @@ export function PlanningView() {
       </div>
 
       {/* Lists */}
-      <div className="flex flex-col gap-10 mt-4">
+      <div id="transaction-lists" className="flex flex-col gap-10 mt-4">
         {/* Receitas */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-2">
@@ -360,61 +380,107 @@ export function PlanningView() {
             <span className="text-[10px] font-bold text-slate-400">{revenues.length} itens</span>
           </div>
           {revenues.length === 0 && <p className="text-zinc-400 text-sm italic px-2">Nenhuma receita registrada.</p>}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:gap-6">
             {revenues.map(tx => (
               <div key={tx.id} className="flex flex-col">
                 <SwipeableItem 
                   onEdit={() => handleEdit(tx)}
                   onDelete={() => handleDelete(tx.id)}
                   isDeleting={deletingId === tx.id}
+                  disabled={isDesktop}
+                  className="rounded-[24px] sm:rounded-[28px]"
                 >
-                  <div 
-                    onClick={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
-                    className="p-4 sm:p-5 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border border-zinc-200/50 dark:border-zinc-800 gap-3 cursor-pointer transition-all active:scale-[0.99] group"
+                  <Card 
+                    className="flex items-center border-zinc-200/60 dark:border-zinc-800/60 gap-3 sm:gap-4 cursor-pointer transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/40 rounded-[24px] sm:rounded-[28px] p-0 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-0.5"
                   >
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-zinc-900 dark:text-zinc-100 truncate">{tx.description}</span>
-                        {tx.frequency === FrequencyType.FIXED && (
-                          <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Fixa</span>
-                        )}
-                        {tx.frequency === FrequencyType.INSTALLMENTS && (
-                          <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">
-                            {tx.installmentIndex}/{tx.installments}
-                          </span>
-                        )}
-                        <ChevronDown size={14} className={cn("text-zinc-300 transition-transform duration-300", expandedId === tx.id ? "rotate-180" : "")} />
-                      </div>
-                      <div className="flex gap-2 items-center mt-0.5">
-                        <span className={cn(
-                          "text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter",
-                          tx.responsibility === 'couple' ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400" :
-                          tx.responsibility === userProfile?.uid ? cn(userColor.bg, "text-white") :
-                          cn(partnerColor.bg, "text-white")
-                        )}>
-                          {tx.responsibility === 'couple' ? 'Conjunta' : 
-                           tx.responsibility === userProfile?.uid ? 'Minha' : 
-                           `Do ${partnerProfile?.displayName?.split(' ')[0] || 'Parceiro'}`}
-                        </span>
-                        <span className="w-1 h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
-                        <div className="flex items-center gap-1">
-                          {(() => {
-                            const cat = categories.find(c => c.name === (tx.category || 'Geral'));
-                            const Icon = getCategoryIcon(tx.category || 'Geral', cat?.iconName);
-                            return (
-                              <div className="flex items-center gap-1">
-                                <Icon size={10} style={{ color: cat?.color || '#71717a' }} />
-                                <span className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase font-black tracking-tighter">{tx.category || 'Geral'}</span>
-                              </div>
-                            );
-                          })()}
+                    <div 
+                      onClick={() => setExpandedId(expandedId === tx.id ? null : tx.id)}
+                      className="p-3 sm:p-6 flex-1 flex items-center justify-between gap-3 sm:gap-5 group"
+                    >
+                      <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
+                         {/* Icon Box */}
+                         <div className={cn(
+                           "flex w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-[20px] items-center justify-center shrink-0 border border-emerald-100/50 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-500 shadow-sm"
+                         )}>
+                            {(() => {
+                              const cat = categories.find(c => c.name === (tx.category || 'Geral'));
+                              const Icon = getCategoryIcon(tx.category || 'Geral', cat?.iconName);
+                              return <Icon size={isDesktop ? 24 : 20} />;
+                            })()}
+                         </div>
+
+                        <div className="flex flex-col min-w-0 flex-1 gap-0.5 sm:gap-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-black text-[13px] sm:text-lg text-zinc-900 dark:text-zinc-100 truncate tracking-tight leading-tight">{tx.description}</span>
+                            {tx.frequency === FrequencyType.FIXED && (
+                              <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">Fixa</span>
+                            )}
+                            {tx.frequency === FrequencyType.INSTALLMENTS && (
+                              <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">
+                                {tx.installmentIndex}/{tx.installments}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex gap-2 sm:gap-3 items-center">
+                            <span className={cn(
+                              "text-[8px] sm:text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest shrink-0 shadow-sm",
+                              tx.responsibility === 'couple' ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400" :
+                              tx.responsibility === userProfile?.uid ? cn(userColor.bg, "text-white") :
+                              cn(partnerColor.bg, "text-white")
+                            )}>
+                              {tx.responsibility === 'couple' ? 'Conjunta' : 
+                               tx.responsibility === userProfile?.uid ? 'Você' : 
+                               partnerProfile?.displayName?.split(' ')[0]}
+                            </span>
+                            <span className="w-1 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full shrink-0" />
+                            {(() => {
+                              const cat = categories.find(c => c.name === (tx.category || 'Geral'));
+                              return (
+                                <span className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 uppercase font-black tracking-[0.1em] truncate">
+                                  {tx.category || 'Geral'}
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-2 sm:gap-4 shrink-0 pr-1 sm:pr-4">
+                        <div className="text-right">
+                          <span className="text-[15px] sm:text-2xl font-black text-emerald-600 leading-none tracking-tighter">{formatCurrency(tx.amount)}</span>
+                        </div>
+                        <ChevronDown size={isDesktop ? 18 : 14} className={cn("text-zinc-300 transition-transform duration-300", expandedId === tx.id ? "rotate-180" : "")} />
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-lg font-black text-emerald-600 leading-none">{formatCurrency(tx.amount)}</span>
-                    </div>
-                  </div>
+
+                    {/* Desktop Actions */}
+                    {isDesktop && (
+                      <div className="flex items-center gap-2 pr-5">
+                         <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           onClick={() => handleEdit(tx)}
+                           className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                         >
+                           <Pencil size={18} />
+                         </Button>
+                         <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           onClick={() => handleDelete(tx.id)}
+                           className={cn(
+                             "w-10 h-10 rounded-xl transition-all",
+                             deletingId === tx.id 
+                               ? "bg-rose-600 text-white" 
+                               : "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                           )}
+                         >
+                           <Trash2 size={18} />
+                         </Button>
+                      </div>
+                    )}
+                  </Card>
                 </SwipeableItem>
 
                 <AnimatePresence>
@@ -459,7 +525,7 @@ export function PlanningView() {
             <span className="text-[10px] font-bold text-slate-400">{displayExpenses.length} itens</span>
           </div>
           {displayExpenses.length === 0 && <p className="text-zinc-400 text-sm italic px-2">Nenhuma despesa registrada.</p>}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:gap-6">
             {displayExpenses.map(item => {
               const isBill = item.isCardBill;
               return (
@@ -468,71 +534,112 @@ export function PlanningView() {
                     onEdit={!isBill ? () => handleEdit(item) : undefined}
                     onDelete={!isBill ? () => handleDelete(item.id) : undefined}
                     isDeleting={deletingId === item.id}
+                    disabled={isDesktop}
+                    className="rounded-[24px] sm:rounded-[28px]"
                   >
-                    <div 
-                      onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                    <Card 
                       className={cn(
-                        "p-4 sm:p-5 flex items-center justify-between shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border gap-3 cursor-pointer transition-all active:scale-[0.99] group",
-                        isBill ? "border-rose-200 dark:border-rose-900/50 bg-rose-50/30 dark:bg-rose-950/10" : "border-zinc-200/50 dark:border-zinc-800"
+                        "flex items-center border gap-3 sm:gap-4 cursor-pointer transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/40 rounded-[24px] sm:rounded-[28px] p-0 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-0.5",
+                        isBill ? "border-rose-200 dark:border-rose-900/50 bg-rose-50/10 dark:bg-rose-950/20" : "border-zinc-200/60 dark:border-zinc-800/60"
                       )}>
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-zinc-900 dark:text-zinc-100 truncate">{item.description}</span>
-                          {isBill && (
-                            <span className="text-[8px] bg-rose-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-tighter shadow-sm">Cartão</span>
-                          )}
-                          {!isBill && item.frequency === FrequencyType.FIXED && (
-                            <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">Fixa</span>
-                          )}
-                          {!isBill && item.frequency === FrequencyType.INSTALLMENTS && (
-                            <span className="text-[8px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">
-                              {item.installmentIndex}/{item.installments}
-                            </span>
-                          )}
-                          <ChevronDown size={14} className={cn("text-zinc-300 transition-transform duration-300", expandedId === item.id ? "rotate-180" : "")} />
-                        </div>
-                        <div className="flex gap-2 items-center mt-0.5">
-                          {!isBill ? (
-                            <>
-                            <span className={cn(
-                              "text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter",
-                              item.responsibility === 'couple' ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400" :
-                              item.responsibility === userProfile?.uid ? cn(userColor.bg, "text-white") :
-                              cn(partnerColor.bg, "text-white")
-                            )}>
-                              {item.responsibility === 'couple' ? 'Conjunta' : 
-                               item.responsibility === userProfile?.uid ? 'Minha' : 
-                               `Do ${partnerProfile?.displayName?.split(' ')[0] || 'Parceiro'}`}
-                            </span>
-                              <span className="w-1 h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full" />
-                              <div className="flex items-center gap-1">
-                                {(() => {
-                                  const cat = categories.find(c => c.name === (item.category || 'Geral'));
-                                  const Icon = getCategoryIcon(item.category || 'Geral', cat?.iconName);
-                                  return (
-                                    <div className="flex items-center gap-1">
-                                      <Icon size={10} style={{ color: cat?.color || '#71717a' }} />
-                                      <span className="text-[9px] text-zinc-400 dark:text-zinc-500 uppercase font-black tracking-tighter">{item.category || 'Geral'}</span>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </>
-                          ) : (
-                            <div 
-                              className="flex items-center gap-1 text-[9px] font-black uppercase"
-                              style={{ color: item.card?.color || '#e11d48' }}
-                            >
-                              <CreditCard size={10} />
-                              <span>Resumo da fatura no mês</span>
+                      <div 
+                        onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                        className="p-3 sm:p-6 flex-1 flex items-center justify-between gap-3 sm:gap-5 group"
+                      >
+                        <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
+                           {/* Icon Box */}
+                           <div className={cn(
+                             "flex w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-[20px] items-center justify-center shrink-0 border border-rose-100/50 dark:border-rose-900/30 bg-rose-50/50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-500 shadow-sm"
+                           )}>
+                              {(() => {
+                                const cat = categories.find(c => c.name === (item.category || 'Geral'));
+                                const Icon = getCategoryIcon(item.category || 'Geral', cat?.iconName);
+                                return <Icon size={isDesktop ? 24 : 20} />;
+                              })()}
+                           </div>
+
+                          <div className="flex flex-col min-w-0 flex-1 gap-0.5 sm:gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-black text-[13px] sm:text-lg text-zinc-900 dark:text-zinc-100 truncate tracking-tight leading-tight">{item.description}</span>
+                              {isBill && (
+                                <span className="text-[8px] bg-rose-600 text-white px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shadow-sm shrink-0">Cartão</span>
+                              )}
+                              {!isBill && item.frequency === FrequencyType.FIXED && (
+                                <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">Fixa</span>
+                              )}
+                              {!isBill && item.frequency === FrequencyType.INSTALLMENTS && (
+                                <span className="text-[8px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">
+                                  {item.installmentIndex}/{item.installments}
+                                </span>
+                              )}
                             </div>
-                          )}
+
+                            <div className="flex gap-2 sm:gap-3 items-center">
+                              {!isBill ? (
+                                <>
+                                  <span className={cn(
+                                    "text-[8px] sm:text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest shrink-0 shadow-sm",
+                                    item.responsibility === 'couple' ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400" :
+                                    item.responsibility === userProfile?.uid ? cn(userColor.bg, "text-white") :
+                                    cn(partnerColor.bg, "text-white")
+                                  )}>
+                                    {item.responsibility === 'couple' ? 'Conjunta' : 
+                                     item.responsibility === userProfile?.uid ? 'Você' : 
+                                     partnerProfile?.displayName?.split(' ')[0]}
+                                  </span>
+                                  <span className="w-1 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full shrink-0" />
+                                  <span className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 uppercase font-black tracking-[0.1em] truncate">
+                                    {item.category || 'Geral'}
+                                  </span>
+                                </>
+                              ) : (
+                                <div 
+                                  className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.12em]"
+                                  style={{ color: item.card?.color || '#e11d48' }}
+                                >
+                                  <CreditCard size={12} />
+                                  <span>Fatura mensal</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 sm:gap-4 shrink-0 pr-1 sm:pr-4">
+                          <div className="text-right">
+                            <span className="text-[15px] sm:text-2xl font-black text-rose-600 leading-none tracking-tighter">{formatCurrency(item.amount)}</span>
+                          </div>
+                          <ChevronDown size={isDesktop ? 18 : 14} className={cn("text-zinc-300 transition-transform duration-300", expandedId === item.id ? "rotate-180" : "")} />
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-lg font-black text-rose-600 leading-none">{formatCurrency(item.amount)}</span>
-                      </div>
-                    </div>
+
+                      {/* Desktop Actions */}
+                      {isDesktop && !isBill && (
+                        <div className="flex items-center gap-2 pr-5">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleEdit(item)}
+                            className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40"
+                          >
+                            <Pencil size={18} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(item.id)}
+                            className={cn(
+                              "w-10 h-10 rounded-xl transition-all",
+                              deletingId === item.id 
+                                ? "bg-rose-600 text-white" 
+                                : "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                            )}
+                          >
+                            <Trash2 size={18} />
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
                   </SwipeableItem>
 
                   <AnimatePresence>
@@ -595,7 +702,7 @@ export function PlanningView() {
       </div>
 
       {/* FABs */}
-      <div className="fixed bottom-[92px] sm:bottom-[110px] left-6 sm:left-8 z-20">
+      <div id="add-buttons" className="fixed bottom-[92px] sm:bottom-[110px] left-6 sm:left-8 z-20">
         <button 
           onClick={() => openCreateModal(TransactionType.REVENUE)}
           className="w-14 h-14 sm:w-16 sm:h-16 bg-emerald-500 text-white rounded-full shadow-2xl shadow-emerald-500/20 dark:shadow-emerald-900/40 flex items-center justify-center active:scale-95 hover:scale-105 transition-all outline-none"
@@ -625,13 +732,13 @@ export function PlanningView() {
               initial={{ scale: 0.9, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.9, opacity: 0 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-lg bg-white dark:bg-zinc-900 rounded-[32px] p-6 z-50 flex flex-col gap-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-lg bg-white dark:bg-zinc-900 rounded-[32px] p-8 z-50 flex flex-col gap-8 shadow-2xl max-h-[90vh] overflow-y-auto border border-zinc-100 dark:border-zinc-800"
             >
               <div className="flex items-center justify-between">
-                <h2 className={cn("text-xl font-black", showModal === TransactionType.REVENUE ? "text-green-600" : "text-red-600")}>
+                <h2 className={cn("text-2xl font-black tracking-tight", showModal === TransactionType.REVENUE ? "text-emerald-600" : "text-rose-600")}>
                   {editingId ? 'Editar' : 'Nova'} {showModal === TransactionType.REVENUE ? 'Receita' : 'Despesa'}
                 </h2>
-                <Button variant="ghost" size="icon" onClick={() => { setShowModal(null); setEditingId(null); }}>
+                <Button variant="ghost" size="icon" onClick={() => { setShowModal(null); setEditingId(null); }} className="rounded-full w-10 h-10">
                   <X />
                 </Button>
               </div>

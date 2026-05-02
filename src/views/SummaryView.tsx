@@ -194,49 +194,61 @@ export function SummaryView() {
       </div>
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card className="p-6 bg-zinc-900 border-zinc-800 text-white col-span-1 sm:col-span-2 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl group-hover:bg-orange-500/20 transition-all rounded-full -mr-16 -mt-16" />
-          <div className="relative z-10">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Saldo no Período</span>
-            <p className={cn(
-              "text-5xl font-black tracking-tighter mt-2",
-              currentDisplayStats.balance >= 0 ? "text-emerald-400" : "text-rose-500"
-            )}>
-              {formatCurrency(currentDisplayStats.balance)}
-            </p>
-            <div className="flex items-center gap-2 mt-4">
-              <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-full">
-                <TrendingUp size={12} className="text-emerald-400" />
-                <span className="text-[10px] font-bold text-emerald-400">{formatCurrency(currentDisplayStats.revenue)}</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+        <Card className="p-6 sm:p-10 bg-zinc-900 border-zinc-800 text-white md:col-span-1 relative overflow-hidden group shadow-2xl rounded-[32px] sm:rounded-[40px]">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-orange-500/10 blur-[80px] group-hover:bg-orange-500/20 transition-all rounded-full -mr-24 -mt-24 pointer-events-none" />
+          <div className="relative z-10 flex flex-col h-full justify-between gap-6">
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-500 leading-none">Saldo Líquido</span>
+              <p className={cn(
+                "text-[32px] sm:text-5xl font-black tracking-tighter mt-4 leading-none",
+                currentDisplayStats.balance >= 0 ? "text-emerald-400" : "text-rose-500"
+              )}>
+                {formatCurrency(currentDisplayStats.balance)}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/5">
+                <TrendingUp size={14} className="text-emerald-400" />
+                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-tighter">{formatCurrency(currentDisplayStats.revenue)}</span>
               </div>
-              <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-full">
-                <TrendingDown size={12} className="text-rose-400" />
-                <span className="text-[10px] font-bold text-rose-400">{formatCurrency(currentDisplayStats.expenses)}</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/5">
+                <TrendingDown size={14} className="text-rose-400" />
+                <span className="text-[10px] font-black text-rose-400 uppercase tracking-tighter">{formatCurrency(currentDisplayStats.expenses)}</span>
               </div>
             </div>
           </div>
         </Card>
 
-        <Card className="p-6 bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Taxa de Poupança</span>
-          <p className="text-3xl font-black tracking-tighter text-orange-500">
-            {currentDisplayStats.revenue > 0 ? ((currentDisplayStats.balance / currentDisplayStats.revenue) * 100).toFixed(1) : 0}%
-          </p>
-          <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full mt-3 overflow-hidden">
-             <div 
-               className="bg-orange-500 h-full rounded-full transition-all duration-1000" 
-               style={{ width: `${Math.min(Math.max((currentDisplayStats.balance / (currentDisplayStats.revenue || 1)) * 100, 0), 100)}%` }} 
-             />
+        <Card className="p-6 sm:p-10 bg-white dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800/60 rounded-[32px] sm:rounded-[40px] flex flex-col justify-between gap-6 shadow-sm">
+          <div>
+            <span className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4 block leading-none">Eficiência</span>
+            <p className="text-[32px] sm:text-5xl font-black tracking-tighter text-orange-500 leading-none">
+              {currentDisplayStats.revenue > 0 ? ((currentDisplayStats.balance / currentDisplayStats.revenue) * 100).toFixed(1) : 0}%
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2.5 rounded-full overflow-hidden shadow-inner">
+               <div 
+                 className="bg-orange-500 h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(249,115,22,0.5)]" 
+                 style={{ width: `${Math.min(Math.max((currentDisplayStats.balance / (currentDisplayStats.revenue || 1)) * 100, 0), 100)}%` }} 
+               />
+            </div>
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest italic">Taxa de Poupança</span>
           </div>
         </Card>
 
-        <Card className="p-6 bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 flex flex-col justify-center">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Gasto Médio/Dia</span>
-          <p className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-            {formatCurrency(currentDisplayStats.expenses / (selectedMonthIndex !== null ? 30 : (new Date().getMonth() + 1) * 30))}
-          </p>
-          <p className="text-[10px] font-bold text-zinc-500 uppercase mt-1">Estimativa de consumo</p>
+        <Card className="p-6 sm:p-10 bg-white dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800/60 rounded-[32px] sm:rounded-[40px] flex flex-col justify-between gap-6 shadow-sm">
+          <div>
+            <span className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-4 block leading-none">Consumo Diário</span>
+            <p className="text-[32px] sm:text-5xl font-black tracking-tighter text-zinc-900 dark:text-zinc-100 leading-none">
+              {formatCurrency(currentDisplayStats.expenses / (selectedMonthIndex !== null ? 30 : Math.max((new Date().getMonth() + 1) * 30, 30)))}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-zinc-300 dark:bg-zinc-700 rounded-full animate-pulse" />
+            <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">Baseado no período</p>
+          </div>
         </Card>
       </div>
 

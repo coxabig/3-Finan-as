@@ -47,6 +47,7 @@ export interface UserProfile {
   onboarded?: boolean;
   isPremium?: boolean;
   darkMode?: boolean;
+  tutorialsSeen?: string[];
   userColor?: string;
   partnerColor?: string;
 }

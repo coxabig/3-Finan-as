@@ -1,18 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button, Input } from '../components/ui';
-import { Target, TrendingUp, Plus, X, Trash2, ChevronDown, Calendar, ArrowRight, Wallet, Sparkles, Trophy, Lightbulb } from 'lucide-react';
+import { Target, TrendingUp, Plus, X, Trash2, Pencil, ChevronDown, Calendar, ArrowRight, Wallet, Sparkles, Trophy, Lightbulb } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MonthSelector } from '../components/MonthSelector';
 import { motion, AnimatePresence } from 'motion/react';
 import { Goal } from '../types';
 import { format, differenceInDays, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { PageTutorial } from '../components/PageTutorial';
 
 import { SwipeableItem } from '../components/SwipeableItem';
 
 export function GoalsView() {
   const { goals, addGoal, updateGoal, removeGoal } = useFinance();
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkDesktop();
+    window.addEventListener('resize', checkDesktop);
+    return () => window.removeEventListener('resize', checkDesktop);
+  }, []);
+
   const [showModal, setShowModal] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -106,10 +118,18 @@ export function GoalsView() {
 
   return (
     <div className="flex flex-col gap-8 pb-32">
+      <PageTutorial 
+        pageId="goals"
+        steps={[
+          { element: '#goals-header', popover: { title: 'Nossas Metas', description: 'Defina sonhos e objetivos financeiros aqui. Acompanhe o progresso em tempo real.' } },
+          { element: '#goals-stats', popover: { title: 'Resumo', description: 'Veja quanto vocês já pouparam e quanto falta para atingir todos os objetivos.' } },
+          { element: '#simulator-section', popover: { title: 'Simulador', description: 'Descubra o potencial dos juros compostos em seus investimentos.' } },
+        ]}
+      />
       <MonthSelector />
       
       {/* Header & Stats Summary */}
-      <div className="flex flex-col gap-6">
+      <div id="goals-header" className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">Nossas Metas</h2>
@@ -121,7 +141,7 @@ export function GoalsView() {
         </div>
 
         {goals.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="goals-stats" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 border-none text-white relative overflow-hidden group">
               <Sparkles className="absolute -right-4 -top-4 w-24 h-24 text-white/10 rotate-12 group-hover:scale-110 transition-transform duration-500" />
               <div className="flex flex-col gap-1 relative z-10">
@@ -180,147 +200,177 @@ export function GoalsView() {
               onEdit={() => handleEdit(goal)}
               onDelete={() => handleDelete(goal.id)}
               isDeleting={deletingId === goal.id}
+              disabled={isDesktop}
             >
-              <Card 
-                onClick={() => setExpandedId(expandedId === goal.id ? null : goal.id)}
-                className={cn(
-                  "p-0 overflow-hidden relative group bg-white dark:bg-zinc-900/40 border-none ring-1 ring-zinc-200/50 dark:ring-zinc-800/60 shadow-sm transition-all active:scale-[0.985] duration-300",
-                  expandedId === goal.id && "ring-orange-500/40 ring-2 shadow-xl"
-                )}
-              >
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={cn(
-                        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors duration-300",
-                        isCompleted ? "bg-emerald-100 dark:bg-emerald-950" : "bg-orange-50 dark:bg-orange-950"
-                      )}>
-                        {isCompleted ? (
-                          <Trophy className="w-6 h-6 text-emerald-600" />
-                        ) : (
-                          <Target className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                        )}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <h3 className="font-black text-zinc-900 dark:text-white leading-tight truncate">{goal.title}</h3>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
-                            {formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}
-                          </span>
+              <div className="flex items-center group/goal">
+                <Card 
+                  onClick={() => setExpandedId(expandedId === goal.id ? null : goal.id)}
+                  className={cn(
+                    "flex-1 p-0 overflow-hidden relative bg-white dark:bg-zinc-900/40 border-none ring-1 ring-zinc-200/50 dark:ring-zinc-800/60 shadow-sm transition-all active:scale-[0.985] duration-300",
+                    expandedId === goal.id && "ring-orange-500/40 ring-2 shadow-xl"
+                  )}
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={cn(
+                          "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors duration-300",
+                          isCompleted ? "bg-emerald-100 dark:bg-emerald-950" : "bg-orange-50 dark:bg-orange-950"
+                        )}>
+                          {isCompleted ? (
+                            <Trophy className="w-6 h-6 text-emerald-600" />
+                          ) : (
+                            <Target className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                          )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <h3 className="font-black text-zinc-900 dark:text-white leading-tight truncate">{goal.title}</h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
+                              {formatCurrency(goal.currentAmount)} de {formatCurrency(goal.targetAmount)}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                         <span className={cn(
+                           "text-[9px] font-black uppercase px-2 py-1 rounded-lg tracking-wider",
+                           isCompleted ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                         )}>
+                           {isCompleted ? 'Finalizada' : goal.deadline ? format(parseISO(goal.deadline), "MMM 'yy", { locale: ptBR }) : 'Sem prazo'}
+                         </span>
+                         {!isCompleted && daysLeft !== null && daysLeft > 0 && (
+                           <span className="text-[8px] font-bold text-zinc-400 uppercase">Faltam {daysLeft} dias</span>
+                         )}
+                      </div>
                     </div>
-                    
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                       <span className={cn(
-                         "text-[9px] font-black uppercase px-2 py-1 rounded-lg tracking-wider",
-                         isCompleted ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
-                       )}>
-                         {isCompleted ? 'Finalizada' : goal.deadline ? format(parseISO(goal.deadline), "MMM 'yy", { locale: ptBR }) : 'Sem prazo'}
-                       </span>
-                       {!isCompleted && daysLeft !== null && daysLeft > 0 && (
-                         <span className="text-[8px] font-bold text-zinc-400 uppercase">Faltam {daysLeft} dias</span>
-                       )}
+
+                    <div className="mt-6 flex flex-col gap-2">
+                      <div className="h-3 w-full bg-zinc-100 dark:bg-zinc-800/60 rounded-full overflow-hidden p-[2px]">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${progress}%` }}
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000",
+                            isCompleted ? "bg-gradient-to-r from-emerald-400 to-emerald-600" : "bg-gradient-to-r from-orange-400 to-orange-600"
+                          )}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{progress.toFixed(0)}% Concluído</span>
+                        {expandedId !== goal.id && <ChevronDown className="text-zinc-300" size={14} />}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-6 flex flex-col gap-2">
-                    <div className="h-3 w-full bg-zinc-100 dark:bg-zinc-800/60 rounded-full overflow-hidden p-[2px]">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progress}%` }}
-                        className={cn(
-                          "h-full rounded-full transition-all duration-1000",
-                          isCompleted ? "bg-gradient-to-r from-emerald-400 to-emerald-600" : "bg-gradient-to-r from-orange-400 to-orange-600"
-                        )}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{progress.toFixed(0)}% Concluído</span>
-                      {expandedId !== goal.id && <ChevronDown className="text-zinc-300" size={14} />}
-                    </div>
-                  </div>
-                </div>
-
-                <AnimatePresence>
-                  {expandedId === goal.id && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeOut' }}
-                      className="overflow-hidden bg-zinc-50/50 dark:bg-black/20"
-                    >
-                      <div className="p-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col gap-6">
-                        <div className="grid grid-cols-2 gap-6">
-                          <div className="flex flex-col gap-1">
-                             <div className="flex items-center gap-1.5 text-rose-500 mb-1">
-                                <Wallet size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Falta Poupar</span>
-                             </div>
-                             <p className="text-lg font-black text-zinc-900 dark:text-white leading-none">
-                               {isCompleted ? formatCurrency(0) : formatCurrency(goal.targetAmount - goal.currentAmount)}
-                             </p>
+                  <AnimatePresence>
+                    {expandedId === goal.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeOut' }}
+                        className="overflow-hidden bg-zinc-50/50 dark:bg-black/20"
+                      >
+                        <div className="p-6 border-t border-zinc-100 dark:border-zinc-800/60 flex flex-col gap-6">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="flex flex-col gap-1">
+                               <div className="flex items-center gap-1.5 text-rose-500 mb-1">
+                                  <Wallet size={12} />
+                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none">Falta Poupar</span>
+                               </div>
+                               <p className="text-lg font-black text-zinc-900 dark:text-white leading-none">
+                                 {isCompleted ? formatCurrency(0) : formatCurrency(goal.targetAmount - goal.currentAmount)}
+                               </p>
+                            </div>
+                            
+                            <div className="flex flex-col gap-2 items-end text-right">
+                               <div className="flex items-center gap-1.5 text-emerald-500 mb-1">
+                                  <TrendingUp size={12} />
+                                  <span className="text-[9px] font-black uppercase tracking-widest leading-none">Esforço Mensal</span>
+                               </div>
+                               <p className="text-lg font-black text-zinc-900 dark:text-white leading-none">
+                                  {(() => {
+                                    const diff = goal.targetAmount - goal.currentAmount;
+                                    if (diff <= 0) return 'Sucesso!';
+                                    const today = new Date();
+                                    const targetDate = parseISO(goal.deadline);
+                                    if (!isValid(targetDate)) return 'Defina data';
+                                    
+                                    const monthsLeft = (targetDate.getFullYear() - today.getFullYear()) * 12 + (targetDate.getMonth() - today.getMonth());
+                                    return formatCurrency(diff / (monthsLeft > 0 ? monthsLeft : 1));
+                                  })()}
+                               </p>
+                            </div>
                           </div>
                           
-                          <div className="flex flex-col gap-2 items-end text-right">
-                             <div className="flex items-center gap-1.5 text-emerald-500 mb-1">
-                                <TrendingUp size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest leading-none">Esforço Mensal</span>
+                          <div className="bg-white dark:bg-zinc-800/40 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-700/50 flex flex-col gap-3">
+                             <div className="flex items-center gap-2">
+                               <div className="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-500/20 flex items-center justify-center shrink-0">
+                                 <Lightbulb size={12} className="text-orange-500" />
+                               </div>
+                               <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Insight do Especialista</span>
                              </div>
-                             <p className="text-lg font-black text-zinc-900 dark:text-white leading-none">
-                                {(() => {
-                                  const diff = goal.targetAmount - goal.currentAmount;
-                                  if (diff <= 0) return 'Sucesso!';
-                                  const today = new Date();
-                                  const targetDate = parseISO(goal.deadline);
-                                  if (!isValid(targetDate)) return 'Defina data';
-                                  
-                                  const monthsLeft = (targetDate.getFullYear() - today.getFullYear()) * 12 + (targetDate.getMonth() - today.getMonth());
-                                  return formatCurrency(diff / (monthsLeft > 0 ? monthsLeft : 1));
-                                })()}
+                             <p className="text-xs text-zinc-500 italic leading-relaxed font-medium">
+                                {isCompleted 
+                                  ? 'Parabéns casal! Vocês atingiram esta meta. Agora é hora de celebrar ou reinvestir este esforço no próximo sonho.'
+                                  : `Com as taxas atuais, se vocês automatizarem este aporte, chegarão no objetivo ${goal.deadline ? 'através de juros compostos em menos tempo.' : 'muito mais rápido.'}`
+                                }
                              </p>
                           </div>
-                        </div>
-                        
-                        <div className="bg-white dark:bg-zinc-800/40 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-700/50 flex flex-col gap-3">
-                           <div className="flex items-center gap-2">
-                             <div className="w-6 h-6 rounded-lg bg-orange-50 dark:bg-orange-500/20 flex items-center justify-center shrink-0">
-                               <Lightbulb size={12} className="text-orange-500" />
-                             </div>
-                             <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Insight do Especialista</span>
-                           </div>
-                           <p className="text-xs text-zinc-500 italic leading-relaxed font-medium">
-                              {isCompleted 
-                                ? 'Parabéns casal! Vocês atingiram esta meta. Agora é hora de celebrar ou reinvestir este esforço no próximo sonho.'
-                                : `Com as taxas atuais, se vocês automatizarem este aporte, chegarão no objetivo ${goal.deadline ? 'através de juros compostos em menos tempo.' : 'muito mais rápido.'}`
-                              }
-                           </p>
-                        </div>
 
-                        <div className="flex items-center justify-center gap-2 pt-2">
-                           <Button 
-                             onClick={(e) => { e.stopPropagation(); handleDelete(goal.id); }}
-                             variant="ghost" 
-                             size="sm" 
-                             className="text-zinc-400 hover:text-rose-500"
-                           >
-                             <Trash2 size={14} className="mr-2" />
-                             Excluir Meta
-                           </Button>
+                          <div className="flex items-center justify-center gap-2 pt-2">
+                             <Button 
+                               onClick={(e) => { e.stopPropagation(); handleDelete(goal.id); }}
+                               variant="ghost" 
+                               size="sm" 
+                               className="text-zinc-400 hover:text-rose-500"
+                             >
+                               <Trash2 size={14} className="mr-2" />
+                               Excluir Meta
+                             </Button>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </Card>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Card>
+
+                {/* Desktop Actions for Goal */}
+                {isDesktop && (
+                  <div className="flex flex-col gap-2 ml-4 opacity-0 group-hover/goal:opacity-100 transition-opacity">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => { e.stopPropagation(); handleEdit(goal); }}
+                      className="w-11 h-11 rounded-xl bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/40"
+                    >
+                      <Pencil size={18} />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(goal.id); }}
+                      className={cn(
+                        "w-11 h-11 rounded-xl transition-all",
+                        deletingId === goal.id 
+                          ? "bg-rose-600 text-white" 
+                          : "bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40"
+                      )}
+                    >
+                      <Trash2 size={18} />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </SwipeableItem>
           );
         })}
       </div>
 
       {/* Financial Simulator Section */}
-      <div className="mt-4 flex flex-col gap-6">
+      <div id="simulator-section" className="mt-4 flex flex-col gap-6">
         <div className="flex items-center gap-3">
            <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
              <TrendingUp className="w-5 h-5 text-orange-500" />

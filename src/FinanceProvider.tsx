@@ -53,6 +53,7 @@ interface FinanceContextType {
   toggleDarkMode: () => Promise<void>;
   updateSubscription: (isPremium: boolean) => Promise<void>;
   updateProfileColors: (colors: { userColor?: string; partnerColor?: string }) => Promise<void>;
+  markTutorialAsSeen: (tutorialId: string) => Promise<void>;
   isFamilyPremium: boolean;
   createCouple: () => Promise<void>;
   joinCouple: (coupleId: string) => Promise<void>;
@@ -470,6 +471,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(prev => prev ? { ...prev, ...cleanColors } : null);
   };
 
+  const markTutorialAsSeen = async (tutorialId: string) => {
+    if (!auth.currentUser || !userProfile) return;
+    
+    // Evitar duplicados
+    if (userProfile.tutorialsSeen?.includes(tutorialId)) return;
+    
+    const newTutorials = [...(userProfile.tutorialsSeen || []), tutorialId];
+    
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+      tutorialsSeen: newTutorials,
+      updatedAt: serverTimestamp()
+    });
+    
+    setUserProfile(prev => prev ? { ...prev, tutorialsSeen: newTutorials } : null);
+  };
+
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {
     if (!userProfile?.coupleId) return;
     try {
@@ -735,6 +752,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       toggleDarkMode,
       updateSubscription,
       updateProfileColors,
+      markTutorialAsSeen,
       isFamilyPremium,
       seedInitialCategories,
       updateUserRevenue,
