@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, useMotionValue, useTransform, AnimatePresence } from 'motion/react';
+import { motion, useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 import { Pencil, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 

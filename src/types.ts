@@ -50,6 +50,7 @@ export interface UserProfile {
   tutorialsSeen?: string[];
   userColor?: string;
   partnerColor?: string;
+  language?: string;
 }
 
 export interface Couple {

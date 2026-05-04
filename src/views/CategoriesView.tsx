@@ -10,7 +10,7 @@ import {
   Check,
   Palette
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { Category } from '../types';
 import { getCategoryIcon, ALL_ICONS } from '../lib/category-icons';
@@ -31,7 +31,10 @@ const CATEGORY_COLORS = [
   '#18181b', // zinc-950
 ];
 
+import { useTranslation } from 'react-i18next';
+
 export function CategoriesView() {
+  const { t } = useTranslation();
   const { categories, addCategory, updateCategory, removeCategory, seedInitialCategories } = useFinance();
 
   const [isDesktop, setIsDesktop] = useState(false);
@@ -98,10 +101,10 @@ export function CategoriesView() {
         ]}
       />
       <div id="category-header" className="flex items-center justify-between">
-        <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 dark:text-white">Categorias</h2>
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 dark:text-white">{t('categories_title_header', { defaultValue: 'Categorias' })}</h2>
         <Button onClick={() => setShowAddModal(true)} variant="primary" className="gap-2">
           <Plus size={18} />
-          <span>Nova</span>
+          <span>{t('new_btn_short', { defaultValue: 'Nova' })}</span>
         </Button>
       </div>
 
@@ -110,12 +113,12 @@ export function CategoriesView() {
           <Card className="p-12 border-dashed border-2 flex flex-col items-center gap-4 text-center bg-zinc-50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800">
             <Tag className="w-12 h-12 text-zinc-200 dark:text-zinc-800" />
             <div>
-               <p className="text-zinc-900 dark:text-white font-bold">Nenhuma categoria criada</p>
-               <p className="text-zinc-500 dark:text-zinc-400 text-sm">Crie categorias personalizadas ou comece com nossas sugestões.</p>
+               <p className="text-zinc-900 dark:text-white font-bold">{t('no_category_created', { defaultValue: 'Nenhuma categoria criada' })}</p>
+               <p className="text-zinc-500 dark:text-zinc-400 text-sm">{t('no_category_created_desc', { defaultValue: 'Crie categorias personalizadas ou comece com nossas sugestões.' })}</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button variant="outline" onClick={() => setShowAddModal(true)}>Criar Manualmente</Button>
-              <Button className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" onClick={() => seedInitialCategories()}>Gerar 15 Categorias Sugeridas</Button>
+              <Button variant="outline" onClick={() => setShowAddModal(true)}>{t('create_manually_btn', { defaultValue: 'Criar Manualmente' })}</Button>
+              <Button className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" onClick={() => seedInitialCategories()}>{t('generate_suggested_btn', { defaultValue: 'Gerar 15 Categorias Sugeridas' })}</Button>
             </div>
           </Card>
         )}
@@ -245,7 +248,7 @@ export function CategoriesView() {
                       })()}
                     </div>
                     <Input 
-                      placeholder="Ex: Mercado, Assinaturas..." 
+                      placeholder={t('category_placeholder_alt', { defaultValue: 'Ex: Mercado, Assinaturas...' })} 
                       value={name} 
                       onChange={e => setName(e.target.value)} 
                       className="h-16 flex-1 w-full text-lg font-bold shadow-sm border-2 focus:border-zinc-900 transition-colors"
@@ -255,11 +258,11 @@ export function CategoriesView() {
                   </div>
                   <div className="flex items-center justify-between px-1">
                     <p className="text-[10px] text-zinc-400 italic">
-                      {selectedIcon ? 'Ícone selecionado manualmente' : 'O ícone mudará conforme você digita!'}
+                      {selectedIcon ? t('manual_icon_msg', { defaultValue: 'Ícone selecionado manualmente' }) : t('auto_icon_hint', { defaultValue: 'O ícone mudará conforme você digita!' })}
                     </p>
                     {name && !selectedIcon && (
                       <span className="text-[9px] font-black uppercase text-zinc-300">
-                        {getCategoryIcon(name) === getCategoryIcon('') ? 'Sem correspondência' : 'Ícone sugerido'}
+                        {getCategoryIcon(name) === getCategoryIcon('') ? t('no_match', { defaultValue: 'Sem correspondência' }) : t('suggested_icon', { defaultValue: 'Ícone sugerido' })}
                       </span>
                     )}
                     {selectedIcon && (
@@ -268,14 +271,14 @@ export function CategoriesView() {
                         onClick={() => setSelectedIcon(null)}
                         className="text-[9px] font-black uppercase text-orange-500 hover:orange-600 underline"
                       >
-                        Resetar para Automático
+                        {t('reset_to_auto', { defaultValue: 'Resetar para Automático' })}
                       </button>
                     )}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Escolha um Ícone (Opcional)</span>
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">{t('choose_icon_label', { defaultValue: 'Escolha um Ícone (Opcional)' })}</span>
                   <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 p-4 max-h-48 overflow-y-auto bg-zinc-50 rounded-2xl border border-zinc-100">
                     {Object.entries(ALL_ICONS).map(([iconKey, IconComponent]) => (
                       <button
@@ -296,7 +299,7 @@ export function CategoriesView() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                   <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Selecione uma Cor</span>
+                   <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">{t('select_color_label', { defaultValue: 'Selecione uma Cor' })}</span>
                    <div className="flex flex-wrap gap-3 p-1">
                      {CATEGORY_COLORS.map(c => (
                        <button
@@ -326,10 +329,10 @@ export function CategoriesView() {
                     onClick={closeModal}
                     className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-zinc-400"
                   >
-                    Cancelar
+                    {t('cancel', { defaultValue: 'Cancelar' })}
                   </Button>
                   <Button type="submit" disabled={isSubmitting} className="flex-[2] bg-orange-600 text-white h-14 rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-orange-600/20 dark:shadow-none">
-                    {isSubmitting ? 'Salvando...' : (editingId ? 'Salvar' : 'Criar')}
+                    {isSubmitting ? t('saving', { defaultValue: 'Salvando...' }) : (editingId ? t('save', { defaultValue: 'Salvar' }) : t('create', { defaultValue: 'Criar' }))}
                   </Button>
                 </div>
               </form>

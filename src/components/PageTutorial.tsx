@@ -28,18 +28,26 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
       showProgress: true,
       allowClose: true,
       overlayColor: '#000',
-      overlayOpacity: 0.75,
-      steps: steps.map(step => ({
+      overlayOpacity: 0.85,
+      popoverClass: 'driverjs-theme',
+      steps: steps.map((step, index) => ({
         ...step,
         popover: {
           ...step.popover,
-          nextBtnText: 'Próximo',
+          nextBtnText: index === steps.length - 1 ? 'Concluir ✨' : 'Próximo',
           prevBtnText: 'Anterior',
-          doneBtnText: 'Entendi!',
+          doneBtnText: 'Concluir ✨',
         }
       })),
+      onDeselected: (element, step, { state }) => {
+        // Se desmarcou o último passo, consideramos como concluído
+        if (state.activeIndex === steps.length - 1) {
+          markTutorialAsSeen(pageId);
+        }
+      },
       onDestroyed: () => {
-        markTutorialAsSeen(pageId);
+        // No driver.js v1, onDestroyed é chamado sempre que fecha.
+        // Já cuidamos da marcação no onDeselected acima para garantir finalização.
       }
     });
 

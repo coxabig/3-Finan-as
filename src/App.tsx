@@ -23,6 +23,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, Card, Input } from './components/ui';
 import { cn } from './lib/utils';
+import { useTranslation } from 'react-i18next';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -41,6 +42,7 @@ import { OnboardingView } from './views/OnboardingView';
 import { AdBanner } from './components/AdBanner';
 
 function AppShell() {
+  const { t } = useTranslation();
   const { userProfile, partnerProfile, loading, error } = useFinance();
   const [currentView, setCurrentView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -107,18 +109,18 @@ function AppShell() {
   };
 
   const navItems = [
-    { id: 'dashboard', icon: Home, label: 'Resumo' },
-    { id: 'planning', icon: LayoutList, label: 'Planejamento' },
-    { id: 'invoices', icon: CreditCard, label: 'Faturas' },
+    { id: 'dashboard', icon: Home, label: t('nav_home') },
+    { id: 'planning', icon: LayoutList, label: t('nav_planning') },
+    { id: 'invoices', icon: CreditCard, label: t('nav_invoices') },
   ];
 
   const sideItems = [
-    { id: 'summaries', icon: BarChart3, label: 'Resumos' },
-    { id: 'bank-accounts', icon: Landmark, label: 'Contas' },
-    { id: 'credit-cards', icon: CreditCard, label: 'Cartões' },
-    { id: 'goals', icon: Target, label: 'Metas' },
-    { id: 'categories', icon: Tag, label: 'Categorias' },
-    { id: 'family', icon: Users, label: 'Família' },
+    { id: 'summaries', icon: BarChart3, label: t('nav_summaries') },
+    { id: 'bank-accounts', icon: Landmark, label: t('nav_bank_accounts') },
+    { id: 'credit-cards', icon: CreditCard, label: t('nav_credit_cards') },
+    { id: 'goals', icon: Target, label: t('nav_goals') },
+    { id: 'categories', icon: Tag, label: t('nav_categories') },
+    { id: 'family', icon: Users, label: t('nav_family') },
   ];
 
   return (
@@ -141,7 +143,7 @@ function AppShell() {
           </div>
           <div className="flex items-center gap-3 sm:gap-4 group cursor-pointer" onClick={() => setCurrentView('profile')}>
             <div className="hidden sm:flex flex-col text-right">
-              <p className="text-[10px] uppercase font-black text-zinc-400 leading-none tracking-[0.2em] mb-1">Sessão Ativa</p>
+              <p className="text-[10px] uppercase font-black text-zinc-400 leading-none tracking-[0.2em] mb-1">{t('active_session')}</p>
               <p className="font-black text-xs sm:text-sm tracking-tight">
                 {userProfile.displayName?.split(' ')[0]} <span className="text-zinc-300 dark:text-zinc-600 mx-1">/</span> {partnerProfile?.displayName?.split(' ')[0] || '...'}
               </p>
@@ -197,7 +199,7 @@ function AppShell() {
               className="fixed inset-y-0 left-0 w-72 bg-white dark:bg-zinc-950 z-50 p-6 flex flex-col gap-8 shadow-2xl border-r border-zinc-100 dark:border-zinc-900"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-black text-orange-600 tracking-tighter">MENU</h2>
+                <h2 className="text-2xl font-black text-orange-600 tracking-tighter">{t('sidebar_menu')}</h2>
                 <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)} className="dark:text-zinc-400">
                   <X className="w-6 h-6" />
                 </Button>
@@ -226,7 +228,7 @@ function AppShell() {
               <div className="mt-auto flex flex-col gap-2">
                 <Button variant="ghost" className="justify-start gap-4 px-4 py-6 text-zinc-500 dark:text-rose-500/60 hover:dark:text-rose-500" onClick={() => auth.signOut()}>
                   <LogOut className="w-6 h-6" />
-                  <span className="font-black text-xs uppercase tracking-widest">Sair</span>
+                  <span className="font-black text-xs uppercase tracking-widest">{t('exit')}</span>
                 </Button>
               </div>
             </motion.aside>

@@ -51,6 +51,7 @@ export function Button({
 }
 
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  id?: string;
   children?: React.ReactNode;
   className?: string;
   onClick?: () => void;

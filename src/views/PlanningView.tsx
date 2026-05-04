@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { MonthSelector } from '../components/MonthSelector';
 import { getCategoryIcon } from '../lib/category-icons';
 import { PageTutorial } from '../components/PageTutorial';
+import { useFormatCurrency } from '../hooks/useFormatCurrency';
 
 import { SwipeableItem } from '../components/SwipeableItem';
 
@@ -20,7 +21,11 @@ const COLORS = [
   { name: 'Zinc', bg: 'bg-zinc-600', text: 'text-zinc-600', border: 'border-zinc-200', light: 'bg-zinc-50', dark: 'dark:bg-zinc-800/40', darkText: 'dark:text-zinc-400', darkBorder: 'dark:border-zinc-800/30', shadow: 'shadow-zinc-900/20' },
 ];
 
+import { useTranslation } from 'react-i18next';
+
 export function PlanningView() {
+  const { t } = useTranslation();
+  const { formatCurrency } = useFormatCurrency();
   const { transactions, userProfile, partnerProfile, cards, categories, addTransaction, updateTransaction, removeTransaction, ratios } = useFinance();
   
   const userColor = COLORS.find(c => c.name === userProfile?.userColor) || COLORS[1];
@@ -58,19 +63,19 @@ export function PlanningView() {
     
     // Rigorous validation: all fields must be filled
     if (!description.trim()) {
-      setFormError("Por favor, insira uma descrição.");
+      setFormError(t('description_required', { defaultValue: 'Por favor, insira uma descrição.' }));
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
-      setFormError("Por favor, insira um valor válido maior que zero.");
+      setFormError(t('amount_required', { defaultValue: 'Por favor, insira um valor válido maior que zero.' }));
       return;
     }
     if (!category.trim()) {
-      setFormError("Por favor, escolha ou insira uma categoria.");
+      setFormError(t('category_required', { defaultValue: 'Por favor, escolha ou insira uma categoria.' }));
       return;
     }
     if (!date) {
-      setFormError("Por favor, selecione uma data.");
+      setFormError(t('date_required', { defaultValue: 'Por favor, selecione uma data.' }));
       return;
     }
 
@@ -104,7 +109,7 @@ export function PlanningView() {
       resetForm();
       setShowModal(null);
     } catch (err: any) {
-      setFormError(err.message || "Erro ao salvar transação.");
+      setFormError(err.message || t('error_saving_transaction', { defaultValue: 'Erro ao salvar transação.' }));
     } finally {
       setFormLoading(false);
     }
@@ -151,16 +156,16 @@ export function PlanningView() {
       setDeletingId(null);
     } catch (err: any) {
       console.error("Detailed Delete error:", err);
-      let message = "Erro ao excluir transação.";
+      let message = t('error_deleting_transaction', { defaultValue: 'Erro ao excluir transação.' });
       try {
         const parsed = JSON.parse(err.message);
         if (parsed.error) {
-          message += `\nMotivo: ${parsed.error}`;
-          message += `\nOperação: ${parsed.operationType}`;
-          message += `\nCaminho: ${parsed.path}`;
+          message += `\n${t('reason')}: ${parsed.error}`;
+          message += `\n${t('operation')}: ${parsed.operationType}`;
+          message += `\n${t('path')}: ${parsed.path}`;
         }
       } catch {
-        message += `\n${err.message || 'Erro desconhecido'}`;
+        message += `\n${err.message || t('unknown_error', { defaultValue: 'Erro desconhecido' })}`;
       }
       alert(message);
     } finally {
@@ -206,10 +211,6 @@ export function PlanningView() {
 
   const displayExpenses = [...nonCardExpenses, ...cardBills];
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  };
-
   const totals = transactions.reduce((acc, tx) => {
     const isUser = tx.responsibility === userProfile?.uid;
     const isPartner = tx.responsibility === partnerProfile?.uid;
@@ -251,9 +252,9 @@ export function PlanningView() {
       <PageTutorial 
         pageId="planning"
         steps={[
-          { element: '#summary-header', popover: { title: 'Fluxo Mensal', description: 'Veja um resumo rápido de tudo que entra e sai no seu mês.' } },
-          { element: '#transaction-lists', popover: { title: 'Suas Transações', description: 'Lista detalhada de entradas e saídas. Deslize para editar ou excluir.' } },
-          { element: '#add-buttons', popover: { title: 'Novos Lançamentos', description: 'Use o botão verde para receitas e o vermelho para despesas.' } },
+          { element: '#summary-header', popover: { title: t('monthly_flow_title', { defaultValue: 'Fluxo Mensal' }), description: t('monthly_flow_desc', { defaultValue: 'Veja um resumo rápido de tudo que entra e sai no seu mês.' }) } },
+          { element: '#transaction-lists', popover: { title: t('your_transactions_title', { defaultValue: 'Suas Transações' }), description: t('your_transactions_desc', { defaultValue: 'Lista detalhada de entradas e saídas. Deslize para editar ou excluir.' }) } },
+          { element: '#add-buttons', popover: { title: t('new_launches_title', { defaultValue: 'Novos Lançamentos' }), description: t('new_launches_desc', { defaultValue: 'Use o botão verde para receitas e o vermelho para despesas.' }) } },
         ]}
       />
       <MonthSelector />
@@ -265,7 +266,7 @@ export function PlanningView() {
           className="bg-white dark:bg-zinc-900/40 border border-emerald-100/50 dark:border-emerald-900/30 rounded-[32px] p-6 sm:p-8 flex flex-col gap-4 group shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-emerald-950/5 cursor-pointer active:scale-[0.99] transition-all overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-[0.2em] leading-none">Receitas Totais</span>
+            <span className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-[0.2em] leading-none">{t('total_revenue')}</span>
             <div className="flex items-center gap-3">
               <ChevronDown size={14} className={cn("text-emerald-300 transition-transform duration-300", expandedSummary === 'rev' ? "rotate-180" : "")} />
               <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-600/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner dark:shadow-emerald-900/20 border border-emerald-100/50 dark:border-emerald-800/30">
@@ -301,14 +302,14 @@ export function PlanningView() {
              <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-500">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-2 rounded-full", userColor.bg)} />
-                  <span className="opacity-70">Eu:</span>
+                  <span className="opacity-70">{t('me')}:</span>
                 </div>
                 <span className="font-black">{formatCurrency(totals.userRev)}</span>
              </div>
              <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-emerald-800 dark:text-emerald-500">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-2 rounded-full", partnerColor.bg)} />
-                  <span className="opacity-70">{partnerProfile?.displayName?.split(' ')[0] || 'Parceiro'}:</span>
+                  <span className="opacity-70">{partnerProfile?.displayName?.split(' ')[0] || t('partner')}:</span>
                 </div>
                 <span className="font-black">{formatCurrency(totals.partnerRev)}</span>
              </div>
@@ -320,7 +321,7 @@ export function PlanningView() {
           className="bg-white dark:bg-zinc-900/40 border border-rose-100/50 dark:border-rose-900/30 rounded-[32px] p-6 sm:p-8 flex flex-col gap-4 group shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-rose-950/5 cursor-pointer active:scale-[0.99] transition-all overflow-hidden"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black text-rose-800 dark:text-rose-400 uppercase tracking-[0.2em] leading-none">Despesas Totais</span>
+            <span className="text-[10px] font-black text-rose-800 dark:text-rose-400 uppercase tracking-[0.2em] leading-none">{t('total_expenses_label')}</span>
             <div className="flex items-center gap-3">
               <ChevronDown size={14} className={cn("text-rose-300 transition-transform duration-300", expandedSummary === 'exp' ? "rotate-180" : "")} />
               <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-600/20 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-inner dark:shadow-rose-900/20 border border-rose-100/50 dark:border-rose-800/30">
@@ -356,14 +357,14 @@ export function PlanningView() {
              <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-rose-800 dark:text-rose-500">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-2 rounded-full", userColor.bg)} />
-                  <span className="opacity-70">Eu:</span>
+                  <span className="opacity-70">{t('me')}:</span>
                 </div>
                 <span className="font-black">{formatCurrency(totals.userExp)}</span>
              </div>
              <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-rose-800 dark:text-rose-500">
                 <div className="flex items-center gap-2">
                   <div className={cn("w-2 h-2 rounded-full", partnerColor.bg)} />
-                  <span className="opacity-70">{partnerProfile?.displayName?.split(' ')[0] || 'Parceiro'}:</span>
+                  <span className="opacity-70">{partnerProfile?.displayName?.split(' ')[0] || t('partner')}:</span>
                 </div>
                 <span className="font-black">{formatCurrency(totals.partnerExp)}</span>
              </div>
@@ -376,10 +377,10 @@ export function PlanningView() {
         {/* Receitas */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="font-black text-xs uppercase tracking-widest text-emerald-800">Fluxo de Entrada</h3>
-            <span className="text-[10px] font-bold text-slate-400">{revenues.length} itens</span>
+            <h3 className="font-black text-xs uppercase tracking-widest text-emerald-800">{t('entry_flow')}</h3>
+            <span className="text-[10px] font-bold text-zinc-400">{revenues.length} {t('items')}</span>
           </div>
-          {revenues.length === 0 && <p className="text-zinc-400 text-sm italic px-2">Nenhuma receita registrada.</p>}
+          {revenues.length === 0 && <p className="text-zinc-400 text-sm italic px-2">{t('no_revenue')}</p>}
           <div className="flex flex-col gap-3 sm:gap-6">
             {revenues.map(tx => (
               <div key={tx.id} className="flex flex-col">
@@ -413,7 +414,7 @@ export function PlanningView() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-black text-[13px] sm:text-lg text-zinc-900 dark:text-zinc-100 truncate tracking-tight leading-tight">{tx.description}</span>
                             {tx.frequency === FrequencyType.FIXED && (
-                              <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">Fixa</span>
+                              <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">{t('fixed')}</span>
                             )}
                             {tx.frequency === FrequencyType.INSTALLMENTS && (
                               <span className="text-[8px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">
@@ -429,16 +430,16 @@ export function PlanningView() {
                               tx.responsibility === userProfile?.uid ? cn(userColor.bg, "text-white") :
                               cn(partnerColor.bg, "text-white")
                             )}>
-                              {tx.responsibility === 'couple' ? 'Conjunta' : 
-                               tx.responsibility === userProfile?.uid ? 'Você' : 
-                               partnerProfile?.displayName?.split(' ')[0]}
+                              {tx.responsibility === 'couple' ? t('joint') : 
+                               tx.responsibility === userProfile?.uid ? t('you') : 
+                               partnerProfile?.displayName?.split(' ')[0] || t('partner')}
                             </span>
                             <span className="w-1 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full shrink-0" />
                             {(() => {
                               const cat = categories.find(c => c.name === (tx.category || 'Geral'));
                               return (
                                 <span className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 uppercase font-black tracking-[0.1em] truncate">
-                                  {tx.category || 'Geral'}
+                                  {tx.category || t('general_category', { defaultValue: 'Geral' })}
                                 </span>
                               );
                             })()}
@@ -494,18 +495,18 @@ export function PlanningView() {
                       <div className="mx-4 mt-1 p-4 bg-zinc-50 dark:bg-zinc-900/20 rounded-b-2xl border-x border-b border-zinc-100 dark:border-zinc-800/40 flex flex-col gap-3">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Responsabilidade</span>
+                            <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{t('responsibility')}</span>
                             {tx.responsibility === 'couple' ? (
                               <div className="flex flex-col text-[10px] font-bold">
-                                <span>Você: {formatCurrency(tx.amount * ratios.user)}</span>
-                                <span>Parceiro: {formatCurrency(tx.amount * ratios.partner)}</span>
+                                <span>{t('me')}: {formatCurrency(tx.amount * ratios.user)}</span>
+                                <span>{t('partner')}: {formatCurrency(tx.amount * ratios.partner)}</span>
                               </div>
                             ) : (
-                              <p className="text-[10px] font-bold">100% {tx.responsibility === userProfile?.uid ? 'Sua' : 'Parceiro'}</p>
+                              <p className="text-[10px] font-bold">100% {tx.responsibility === userProfile?.uid ? t('yours', { defaultValue: 'Sua' }) : t('partner')}</p>
                             )}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Data Lanc.</span>
+                            <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{t('entry_date')}</span>
                             <p className="text-[10px] font-bold">{tx.date}</p>
                           </div>
                         </div>
@@ -521,10 +522,10 @@ export function PlanningView() {
         {/* Despesas */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="font-black text-xs uppercase tracking-widest text-rose-800">Fluxo de Saída</h3>
-            <span className="text-[10px] font-bold text-slate-400">{displayExpenses.length} itens</span>
+            <h3 className="font-black text-xs uppercase tracking-widest text-rose-800">{t('exit_flow')}</h3>
+            <span className="text-[10px] font-bold text-zinc-400">{displayExpenses.length} {t('items')}</span>
           </div>
-          {displayExpenses.length === 0 && <p className="text-zinc-400 text-sm italic px-2">Nenhuma despesa registrada.</p>}
+          {displayExpenses.length === 0 && <p className="text-zinc-400 text-sm italic px-2">{t('no_expenses')}</p>}
           <div className="flex flex-col gap-3 sm:gap-6">
             {displayExpenses.map(item => {
               const isBill = item.isCardBill;
@@ -562,10 +563,10 @@ export function PlanningView() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-black text-[13px] sm:text-lg text-zinc-900 dark:text-zinc-100 truncate tracking-tight leading-tight">{item.description}</span>
                               {isBill && (
-                                <span className="text-[8px] bg-rose-600 text-white px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shadow-sm shrink-0">Cartão</span>
+                                <span className="text-[8px] bg-rose-600 text-white px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shadow-sm shrink-0">{t('card')}</span>
                               )}
                               {!isBill && item.frequency === FrequencyType.FIXED && (
-                                <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">Fixa</span>
+                                <span className="text-[8px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">{t('fixed')}</span>
                               )}
                               {!isBill && item.frequency === FrequencyType.INSTALLMENTS && (
                                 <span className="text-[8px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-lg font-black uppercase tracking-widest shrink-0">
@@ -583,13 +584,13 @@ export function PlanningView() {
                                     item.responsibility === userProfile?.uid ? cn(userColor.bg, "text-white") :
                                     cn(partnerColor.bg, "text-white")
                                   )}>
-                                    {item.responsibility === 'couple' ? 'Conjunta' : 
-                                     item.responsibility === userProfile?.uid ? 'Você' : 
-                                     partnerProfile?.displayName?.split(' ')[0]}
+                                    {item.responsibility === 'couple' ? t('joint') : 
+                                     item.responsibility === userProfile?.uid ? t('you') : 
+                                     partnerProfile?.displayName?.split(' ')[0] || t('partner')}
                                   </span>
                                   <span className="w-1 h-1 bg-zinc-100 dark:bg-zinc-800 rounded-full shrink-0" />
                                   <span className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 uppercase font-black tracking-[0.1em] truncate">
-                                    {item.category || 'Geral'}
+                                    {item.category || t('general_category', { defaultValue: 'Geral' })}
                                   </span>
                                 </>
                               ) : (
@@ -598,7 +599,7 @@ export function PlanningView() {
                                   style={{ color: item.card?.color || '#e11d48' }}
                                 >
                                   <CreditCard size={12} />
-                                  <span>Fatura mensal</span>
+                                  <span>{t('monthly_invoice', { defaultValue: 'Fatura mensal' })}</span>
                                 </div>
                               )}
                             </div>
@@ -653,39 +654,39 @@ export function PlanningView() {
                         <div className="mx-4 mt-1 p-4 bg-zinc-50 dark:bg-zinc-900/20 rounded-b-2xl border-x border-b border-zinc-100 dark:border-zinc-800/40 flex flex-col gap-3">
                           {isBill ? (
                             <div className="flex flex-col gap-2">
-                               <p className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Composição da Fatura</p>
+                               <p className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{t('invoice_composition')}</p>
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Sua Parte:</span>
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">{t('your_part')}:</span>
                                     <span className="text-sm font-black text-rose-600">{formatCurrency(item.userAmount)}</span>
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">Parte do Par:</span>
+                                    <span className="text-[10px] font-bold text-zinc-500 uppercase">{t('partner_part')}:</span>
                                     <span className="text-sm font-black text-rose-600">{formatCurrency(item.partnerAmount)}</span>
                                   </div>
                                </div>
                                <div className="mt-2 pt-2 border-t border-zinc-200/50 dark:border-zinc-800/50">
-                                  <p className="text-[8px] font-black text-zinc-400 uppercase italic">Para ver os itens individuais, vá na aba cartões.</p>
+                                  <p className="text-[8px] font-black text-zinc-400 uppercase italic">{t('card_items_hint')}</p>
                                </div>
                             </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-4">
                               <div className="flex flex-col gap-1">
-                                <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Divisão Real</span>
+                                <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{t('real_split')}</span>
                                 {item.responsibility === 'couple' ? (
                                   <div className="flex flex-col text-[10px] font-bold">
-                                    <span>Você: {formatCurrency(item.amount * ratios.user)}</span>
-                                    <span>Parceiro: {formatCurrency(item.amount * ratios.partner)}</span>
+                                    <span>{t('me')}: {formatCurrency(item.amount * ratios.user)}</span>
+                                    <span>{t('partner')}: {formatCurrency(item.amount * ratios.partner)}</span>
                                   </div>
                                 ) : (
-                                  <p className="text-[10px] font-bold">{item.responsibility === userProfile?.uid ? 'Seu Gasto (100%)' : `Gasto de ${partnerProfile?.displayName?.split(' ')[0] || 'Parceiro'}`}</p>
+                                  <p className="text-[10px] font-bold">{item.responsibility === userProfile?.uid ? t('your_spending') : t('partner_spending', { partner: partnerProfile?.displayName?.split(' ')[0] || t('partner'), defaultValue: `Gasto de ${partnerProfile?.displayName?.split(' ')[0] || 'Parceiro'}` })}</p>
                                 )}
                               </div>
                               <div className="flex flex-col gap-1">
-                                <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Data</span>
+                                <span className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">{t('entry_date')}</span>
                                 <p className="text-[10px] font-bold">{item.date}</p>
                                 {item.cardId && (
-                                  <span className="text-[8px] font-black text-orange-600 uppercase border border-orange-100 dark:border-orange-900 rounded px-1 w-fit mt-1">Cartão: {cards.find(c => c.id === item.cardId)?.name}</span>
+                                  <span className="text-[8px] font-black text-orange-600 uppercase border border-orange-100 dark:border-orange-900 rounded px-1 w-fit mt-1">{t('card')}: {cards.find(c => c.id === item.cardId)?.name}</span>
                                 )}
                               </div>
                             </div>
@@ -736,7 +737,7 @@ export function PlanningView() {
             >
               <div className="flex items-center justify-between">
                 <h2 className={cn("text-2xl font-black tracking-tight", showModal === TransactionType.REVENUE ? "text-emerald-600" : "text-rose-600")}>
-                  {editingId ? 'Editar' : 'Nova'} {showModal === TransactionType.REVENUE ? 'Receita' : 'Despesa'}
+                  {editingId ? t('edit') : t('new')} {showModal === TransactionType.REVENUE ? t('new_income') : t('new_expense')}
                 </h2>
                 <Button variant="ghost" size="icon" onClick={() => { setShowModal(null); setEditingId(null); }} className="rounded-full w-10 h-10">
                   <X />
@@ -749,28 +750,28 @@ export function PlanningView() {
                     {formError}
                   </div>
                 )}
-                <Input placeholder="Descrição" value={description} onChange={e => setDescription(e.target.value)} required />
-                <Input type="number" placeholder="Valor" value={amount} onChange={e => setAmount(e.target.value)} required />
+                <Input placeholder={t('description')} value={description} onChange={e => setDescription(e.target.value)} required />
+                <Input type="number" placeholder={t('value')} value={amount} onChange={e => setAmount(e.target.value)} required />
                 
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Categoria</span>
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">{t('category')}</span>
                   <div className="relative">
                     <select 
                       value={category} 
                       onChange={e => setCategory(e.target.value)}
                       className="w-full h-14 bg-zinc-50 dark:bg-zinc-800/50 border-2 border-zinc-100 dark:border-zinc-800 rounded-xl sm:rounded-2xl px-4 text-sm font-bold focus:outline-none focus:border-zinc-900 dark:focus:border-orange-600 transition-all appearance-none dark:text-white"
                     >
-                      <option value="">Selecione uma categoria...</option>
+                      <option value="">{t('select_category')}</option>
                       {categories.map(c => <option key={c.id} value={c.name} className="dark:bg-zinc-900">{c.name}</option>)}
                       {categories.length === 0 && (
                         <>
-                          <option value="Alimentação">Alimentação</option>
-                          <option value="Transporte">Transporte</option>
-                          <option value="Lazer">Lazer</option>
-                          <option value="Assinaturas">Assinaturas</option>
-                          <option value="Compras">Compras</option>
-                          <option value="Saúde">Saúde</option>
-                          <option value="Outros">Outros</option>
+                          <option value="Alimentação">{t('food_cat', { defaultValue: 'Alimentação' })}</option>
+                          <option value="Transporte">{t('transport_cat', { defaultValue: 'Transporte' })}</option>
+                          <option value="Lazer">{t('leisure_cat', { defaultValue: 'Lazer' })}</option>
+                          <option value="Assinaturas">{t('subscriptions_cat', { defaultValue: 'Assinaturas' })}</option>
+                          <option value="Compras">{t('shopping_cat', { defaultValue: 'Compras' })}</option>
+                          <option value="Saúde">{t('health_cat', { defaultValue: 'Saúde' })}</option>
+                          <option value="Outros">{t('others_cat', { defaultValue: 'Outros' })}</option>
                         </>
                       )}
                     </select>
@@ -784,14 +785,14 @@ export function PlanningView() {
                 
                 {showModal === TransactionType.EXPENSE && cards.length > 0 && (
                   <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Vincular a um Cartão (Opcional)</span>
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">{t('link_card')}</span>
                     <div className="relative">
                       <select 
                         value={cardId} 
                         onChange={e => setCardId(e.target.value)}
                         className="w-full h-14 bg-zinc-50 dark:bg-zinc-800/50 border-2 border-zinc-100 dark:border-zinc-800 rounded-xl sm:rounded-2xl px-4 text-sm font-bold focus:outline-none focus:border-zinc-900 dark:focus:border-orange-600 transition-all appearance-none dark:text-white"
                       >
-                        <option value="" className="dark:bg-zinc-900">Nenhum cartão</option>
+                        <option value="" className="dark:bg-zinc-900">{t('no_card')}</option>
                         {cards.map(card => (
                           <option key={card.id} value={card.id} className="dark:bg-zinc-900">
                             {card.name} (**** {card.lastDigits})
@@ -806,12 +807,12 @@ export function PlanningView() {
                 )}
 
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Tipo de Lançamento</span>
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">{t('transaction_type')}</span>
                   <div className="flex gap-2">
                     {[
-                      { id: FrequencyType.ONCE, label: 'Única' },
-                      { id: FrequencyType.FIXED, label: 'Fixa' },
-                      { id: FrequencyType.INSTALLMENTS, label: 'Parcelada' }
+                      { id: FrequencyType.ONCE, label: t('once') },
+                      { id: FrequencyType.FIXED, label: t('fixed') },
+                      { id: FrequencyType.INSTALLMENTS, label: t('installments') }
                     ].map(f => (
                       <button 
                         key={f.id}
@@ -832,13 +833,13 @@ export function PlanningView() {
 
                 {frequency === FrequencyType.INSTALLMENTS && (
                   <div className="flex flex-col gap-2 animate-in slide-in-from-top-2">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Número de Parcelas</span>
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">{t('num_installments')}</span>
                     <Input type="number" placeholder="Ex: 12" value={installments} onChange={e => setInstallments(e.target.value)} min="2" max="60" />
                   </div>
                 )}
 
                 <div className="flex flex-col gap-2">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">Responsabilidade / Titular</span>
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none">{t('responsibility_holder')}</span>
                   <div className="flex flex-wrap gap-2">
                     <button 
                       type="button"
@@ -850,7 +851,7 @@ export function PlanningView() {
                           : "bg-zinc-50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 text-zinc-400"
                       )}
                     >
-                      {userProfile?.displayName?.split(' ')[0] || 'Eu'}
+                      {userProfile?.displayName?.split(' ')[0] || t('me')}
                     </button>
                     {partnerProfile && (
                       <button 
@@ -863,7 +864,7 @@ export function PlanningView() {
                             : "bg-zinc-50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 text-zinc-400"
                         )}
                       >
-                        {partnerProfile.displayName?.split(' ')[0] || 'Parceiro'}
+                        {partnerProfile.displayName?.split(' ')[0] || t('partner')}
                       </button>
                     )}
                     <button 
@@ -876,13 +877,13 @@ export function PlanningView() {
                           : "bg-zinc-50 dark:bg-zinc-900/50 border-zinc-100 dark:border-zinc-800 text-zinc-400"
                       )}
                     >
-                      Conjunta
+                      {t('joint')}
                     </button>
                   </div>
                 </div>
 
                 <Button type="submit" disabled={formLoading} className={cn("mt-4", showModal === TransactionType.REVENUE ? "bg-green-600" : "bg-red-600")}>
-                  {formLoading ? "Salvando..." : "Salvar"}
+                  {formLoading ? t('saving') : t('save')}
                 </Button>
               </form>
             </motion.div>

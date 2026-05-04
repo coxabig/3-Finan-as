@@ -16,20 +16,31 @@ import {
   X,
   Pencil
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { MonthSelector } from '../components/MonthSelector';
 import { PageTutorial } from '../components/PageTutorial';
 import { TransactionType, FrequencyType } from '../types';
 import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { ptBR, enUS, es } from 'date-fns/locale';
 import { GoogleGenAI, Type } from "@google/genai";
 import { auth } from '../lib/firebase';
 import { getCategoryIcon } from '../lib/category-icons';
-
 import { SwipeableItem } from '../components/SwipeableItem';
+import { useTranslation } from 'react-i18next';
+import { useFormatCurrency } from '../hooks/useFormatCurrency';
+
+const dateLocales: Record<string, any> = {
+  'pt-BR': ptBR,
+  'pt': ptBR,
+  'en': enUS,
+  'es': es
+};
 
 export function InvoicesView() {
+  const { t, i18n } = useTranslation();
+  const { formatCurrency } = useFormatCurrency();
+  const currentLocale = dateLocales[i18n.language] || dateLocales[i18n.language.split('-')[0]] || ptBR;
   const { 
     ratios, 
     userProfile, 
@@ -41,6 +52,7 @@ export function InvoicesView() {
     addTransaction,
     removeTransaction,
     updateTransaction,
+    removeTransactionsByCard,
     selectedMonth,
     isFamilyPremium
   } = useFinance();
@@ -71,6 +83,7 @@ export function InvoicesView() {
 
   // Deletion logic for individual card transactions
   const [deletingTxId, setDeletingTxId] = useState<string | null>(null);
+  const [clearingInvoiceId, setClearingInvoiceId] = useState<string | null>(null);
 
   const handleDeleteTx = async (id: string) => {
     if (deletingTxId !== id) {
@@ -80,6 +93,21 @@ export function InvoicesView() {
     }
     await removeTransaction(id);
     setDeletingTxId(null);
+  };
+
+  const handleClearInvoice = async (cardId: string) => {
+    if (clearingInvoiceId !== cardId) {
+      setClearingInvoiceId(cardId);
+      setTimeout(() => setClearingInvoiceId(prev => prev === cardId ? null : prev), 3000);
+      return;
+    }
+    
+    try {
+      await removeTransactionsByCard(cardId, selectedMonth);
+      setClearingInvoiceId(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleUpdateTxDescription = async (id: string) => {
@@ -174,7 +202,7 @@ export function InvoicesView() {
       setTxCategory('');
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar transação.');
+      alert(t('error_save_transaction', { defaultValue: 'Erro ao salvar transação.' }));
     } finally {
       setFormLoading(false);
     }
@@ -198,7 +226,7 @@ export function InvoicesView() {
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!importCardId) {
-      alert('Selecione um cartão para importar.');
+      alert(t('select_card_import_alert', { defaultValue: 'Selecione um cartão para importar.' }));
       return;
     }
     const file = e.target.files?.[0];
@@ -259,7 +287,7 @@ export function InvoicesView() {
       setImportProgress(100);
     } catch (err) {
       console.error(err);
-      alert('Erro ao analisar o PDF. Verifique se o arquivo é uma fatura válida ou tente novamente.');
+      alert(t('error_analyze_pdf', { defaultValue: 'Erro ao analisar o PDF. Verifique se o arquivo é uma fatura válida ou tente novamente.' }));
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -303,17 +331,17 @@ export function InvoicesView() {
       }
       setImportedTx([]);
       setImportCardId('');
-      alert(`Sucesso! Transações adicionadas ao mês de ${format(parseISO(selectedMonth + '-01'), 'MMMM', { locale: ptBR })}.`);
+      alert(t('success_import_msg', { 
+        defaultValue: `Sucesso! Transações adicionadas ao mês de {{month}}.`,
+        month: format(parseISO(selectedMonth + '-01'), 'MMMM', { locale: currentLocale })
+      }));
     } catch (err) {
-      alert('Erro ao salvar algumas transações.');
+      alert(t('error_save_some_transactions', { defaultValue: 'Erro ao salvar algumas transações.' }));
     } finally {
       setFormLoading(false);
     }
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  };
 
   // Dynamic statistics for subscriptions and installments
   const activeSubscriptionsCount = transactions.filter(t => 
@@ -344,9 +372,9 @@ export function InvoicesView() {
       <PageTutorial 
         pageId="invoices"
         steps={[
-          { element: '#cards-list', popover: { title: 'Gestão de Faturas', description: 'Veja o saldo atual de cada cartão e o quanto eles comprometem do seu limite.' } },
-          { element: '#import-section', popover: { title: 'Importação por IA', description: 'Nossa IA lê sua fatura em PDF e lança todas as despesas para você.' } },
-          { element: '#card-stats', popover: { title: 'Resumo da Exposição', description: 'Acompanhe assinaturas e parcelas futuras em um só lugar.' } },
+          { element: '#cards-list', popover: { title: t('invoice_mgmt_title', { defaultValue: 'Gestão de Faturas' }), description: t('invoice_mgmt_desc', { defaultValue: 'Veja o saldo atual de cada cartão e o quanto eles comprometem do seu limite.' }) } },
+          { element: '#import-section', popover: { title: t('ai_import_title', { defaultValue: 'Importação por IA' }), description: t('ai_import_desc', { defaultValue: 'Nossa IA lê sua fatura em PDF e lança todas as despesas para você.' }) } },
+          { element: '#card-stats', popover: { title: t('exposure_summary_title', { defaultValue: 'Resumo da Exposição' }), description: t('exposure_summary_desc', { defaultValue: 'Acompanhe assinaturas e parcelas futuras em um só lugar.' }) } },
         ]}
       />
       <MonthSelector />
@@ -354,13 +382,13 @@ export function InvoicesView() {
       {/* Cards Slider/List */}
       <div id="cards-list" className="flex flex-col gap-4">
         <div className="flex items-center justify-between px-2">
-          <h3 className="font-black text-xs uppercase tracking-widest text-slate-500">Minhas Faturas</h3>
+          <h3 className="font-black text-xs uppercase tracking-widest text-slate-500">{t('my_invoices', { defaultValue: 'Minhas Faturas' })}</h3>
         </div>
 
         {cards.length === 0 && (
           <Card className="p-8 border-dashed border-2 border-zinc-200 dark:border-zinc-800 flex flex-col items-center gap-4 text-center bg-transparent">
             <CreditCard className="w-12 h-12 text-zinc-200 dark:text-zinc-800" />
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">Cadastre Cartões no Menu Lateral para gerenciar faturas.</p>
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">{t('add_cards_hint', { defaultValue: 'Cadastre Cartões no Menu Lateral para gerenciar faturas.' })}</p>
           </Card>
         )}
 
@@ -385,7 +413,7 @@ export function InvoicesView() {
                             <h4 className="font-black text-sm sm:text-xl leading-none tracking-tight truncate">{card.name}</h4>
                             <div className="flex items-center gap-2">
                               <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">
-                                {card.ownerId === userProfile?.uid ? 'Sua Conta' : `Conta ${partnerProfile?.displayName?.split(' ')[0]}`}
+                                {card.ownerId === userProfile?.uid ? t('your_account', { defaultValue: 'Sua Conta' }) : t('partner_account_fmt', { defaultValue: `Conta ${partnerProfile?.displayName?.split(' ')[0]}`, name: partnerProfile?.displayName?.split(' ')[0] })}
                               </span>
                               <div className="w-1 h-1 bg-white/20 rounded-full" />
                               <span className="text-white/40 text-[8px] sm:text-[9px] font-black tracking-widest uppercase">**** {card.lastDigits}</span>
@@ -404,7 +432,7 @@ export function InvoicesView() {
                         
                         <div className="grid grid-cols-2 gap-3 sm:gap-6">
                           <div className="flex flex-col gap-1.5 min-w-0">
-                              <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">Fatura no Mês</span>
+                              <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">{t('invoice_this_month', { defaultValue: 'Fatura no Mês' })}</span>
                               <span className="text-sm sm:text-3xl font-black text-white tracking-tighter leading-none shrink-0">{formatCurrency(card.invoiceTotal || 0)}</span>
                               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-2 shadow-inner">
                                 <div 
@@ -414,9 +442,9 @@ export function InvoicesView() {
                               </div>
                            </div>
                               <div className="flex flex-col gap-1.5 text-right items-end min-w-0">
-                                 <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">Disponível</span>
+                                 <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">{t('available', { defaultValue: 'Disponível' })}</span>
                                  <span className="text-xs sm:text-2xl font-black text-white/90 tracking-tighter leading-none shrink-0">{formatCurrency(card.limit - card.invoiceTotal)}</span>
-                                 <span className="text-[8px] sm:text-[9px] font-black text-white/30 uppercase tracking-tighter mt-1">Limite {formatCurrency(card.limit)}</span>
+                                 <span className="text-[8px] sm:text-[9px] font-black text-white/30 uppercase tracking-tighter mt-1">{t('limit_label', { defaultValue: 'Limite' })} {formatCurrency(card.limit)}</span>
                               </div>
                         </div>
 
@@ -450,6 +478,76 @@ export function InvoicesView() {
                                    <span className="text-[9px] font-bold text-white/40 uppercase">Comprometido</span>
                                 </div>
                               </div>
+
+                              {/* Detalhamento da Fatura */}
+                              <div className="pt-6 border-t border-white/5 flex flex-col gap-4">
+                                 <div className="flex items-center justify-between">
+                                    <p className="text-white/30 text-[9px] font-black uppercase tracking-widest">Lançamentos do Mês</p>
+                                    <div className="flex items-center gap-3">
+                                      {cardTransactions.filter(tx => tx.cardId === card.id).length > 0 && (
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); handleClearInvoice(card.id); }}
+                                          className={cn(
+                                            "flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                            clearingInvoiceId === card.id 
+                                              ? "bg-rose-600 text-white animate-pulse" 
+                                              : "bg-white/10 text-white/40 hover:bg-white/20"
+                                          )}
+                                        >
+                                          <Trash2 size={10} />
+                                          {clearingInvoiceId === card.id ? t('reset_confirm_word') : t('clear_invoice')}
+                                        </button>
+                                      )}
+                                      <span className="text-[10px] items-center gap-1 flex font-bold text-white/40">
+                                         {cardTransactions.filter(tx => tx.cardId === card.id).length} itens
+                                      </span>
+                                    </div>
+                                 </div>
+                                 <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto pr-1">
+                                    {cardTransactions.filter(tx => tx.cardId === card.id).length === 0 ? (
+                                      <div className="p-8 text-center bg-white/5 rounded-2xl border border-white/5">
+                                         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest italic">Nenhum lançamento registrado</p>
+                                      </div>
+                                    ) : (
+                                      cardTransactions.filter(tx => tx.cardId === card.id).map(tx => (
+                                        <div key={tx.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors group/tx">
+                                           <div className="flex items-center gap-3 min-w-0">
+                                             <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                                               {(() => {
+                                                 const cat = categories.find(c => c.name === tx.category);
+                                                 const Icon = getCategoryIcon(tx.category || tx.description, cat?.iconName);
+                                                 return <Icon size={14} className="text-white/60" />;
+                                               })()}
+                                             </div>
+                                             <div className="min-w-0">
+                                                <p className="text-xs font-bold text-white leading-tight truncate">{tx.description}</p>
+                                                <div className="flex items-center gap-2">
+                                                   <p className="text-[9px] text-white/30 uppercase font-black">{format(parseISO(tx.date), 'dd MMM', { locale: currentLocale })}</p>
+                                                   {tx.installments && (
+                                                     <span className="text-[8px] bg-white/10 text-white/50 px-1 rounded font-black italic">
+                                                       {tx.installmentIndex}/{tx.installments}
+                                                     </span>
+                                                   )}
+                                                </div>
+                                             </div>
+                                           </div>
+                                           <div className="flex items-center gap-4 shrink-0">
+                                             <p className="text-xs font-black text-white">{formatCurrency(tx.amount)}</p>
+                                             <button 
+                                               onClick={(e) => { e.stopPropagation(); handleDeleteTx(tx.id); }}
+                                               className={cn(
+                                                 "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                                                 deletingTxId === tx.id ? "bg-rose-600 text-white" : "text-white/20 hover:text-rose-400 group-hover/tx:text-white/40"
+                                               )}
+                                             >
+                                               {deletingTxId === tx.id ? <AlertCircle size={14} /> : <Trash2 size={14} />}
+                                             </button>
+                                           </div>
+                                        </div>
+                                      ))
+                                    )}
+                                 </div>
+                              </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -465,10 +563,10 @@ export function InvoicesView() {
       {/* Import Section */}
       <div id="import-section" className="flex flex-col gap-4">
         <div className="flex items-center justify-between px-2">
-          <h3 className="font-black text-xs uppercase tracking-widest text-zinc-500">Importar via IA</h3>
+          <h3 className="font-black text-xs uppercase tracking-widest text-zinc-500">{t('import_via_ia_title', { defaultValue: 'Importar via IA' })}</h3>
           {importedTx.length > 0 && (
             <Button variant="ghost" size="sm" onClick={() => { setImportedTx([]); setImportCardId(''); }} className="text-zinc-400">
-              Cancelar
+              {t('cancel', { defaultValue: 'Cancelar' })}
             </Button>
           )}
         </div>
@@ -570,7 +668,7 @@ export function InvoicesView() {
                <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white">
                  <Search size={16} />
                </div>
-               <p className="text-sm font-bold text-orange-800 dark:text-orange-400">Encontramos {importedTx.length} transações. Revise antes de salvar.</p>
+               <p className="text-sm font-bold text-orange-800 dark:text-orange-400">{t('found_transactions', { defaultValue: 'Encontramos {{count}} transações. Revise antes de salvar.', count: importedTx.length })}</p>
              </div>
 
              <div className="flex flex-col gap-3">
@@ -686,7 +784,7 @@ export function InvoicesView() {
              </Button>
 
              <p className="text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest pb-8">
-               As despesas serão lançadas para {format(parseISO(selectedMonth + '-01'), 'MMMM', { locale: ptBR })}
+               As despesas serão lançadas para {format(parseISO(selectedMonth + '-01'), 'MMMM', { locale: currentLocale })}
              </p>
           </div>
         )}

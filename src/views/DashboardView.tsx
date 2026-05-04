@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button } from '../components/ui';
 import { cn } from '../lib/utils';
 import { TrendingUp, TrendingDown, Wallet, Users, ChevronLeft, ChevronRight, Tag, ChevronDown } from 'lucide-react';
 import { format, addMonths, subMonths, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { getCategoryIcon } from '../lib/category-icons';
-import { motion, AnimatePresence } from 'framer-motion';
-
-import { MonthSelector } from '../components/MonthSelector';
-import { PageTutorial } from '../components/PageTutorial';
-
+import { ptBR, enUS, es } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import { TransactionType } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PageTutorial } from '../components/PageTutorial';
+import { MonthSelector } from '../components/MonthSelector';
+import { getCategoryIcon } from '../lib/category-icons';
+import { useFormatCurrency } from '../hooks/useFormatCurrency';
 
 const COLORS = [
   { name: 'Emerald', bg: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-200', light: 'bg-emerald-50', dark: 'dark:bg-emerald-600/20', darkText: 'dark:text-emerald-400', darkBorder: 'dark:border-emerald-900/20', shadow: 'shadow-emerald-900/20' },
@@ -22,7 +22,17 @@ const COLORS = [
   { name: 'Zinc', bg: 'bg-zinc-600', text: 'text-zinc-600', border: 'border-zinc-200', light: 'bg-zinc-50', dark: 'dark:bg-zinc-800/40', darkText: 'dark:text-zinc-400', darkBorder: 'dark:border-zinc-800/30', shadow: 'shadow-zinc-900/20' },
 ];
 
+const dateLocales: Record<string, any> = {
+  'pt-BR': ptBR,
+  'pt': ptBR,
+  'en': enUS,
+  'es': es
+};
+
 export function DashboardView() {
+  const { t, i18n } = useTranslation();
+  const { formatCurrency } = useFormatCurrency();
+  const currentLocale = dateLocales[i18n.language] || dateLocales[i18n.language.split('-')[0]] || ptBR;
   const { 
     userProfile, 
     partnerProfile, 
@@ -32,8 +42,8 @@ export function DashboardView() {
     updateProfileColors
   } = useFinance();
 
-  const [expandedCard, setExpandedCard] = React.useState<string | null>(null);
-  const [expandedUserShare, setExpandedUserShare] = React.useState<'user' | 'partner' | null>(null);
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [expandedUserShare, setExpandedUserShare] = useState<'user' | 'partner' | null>(null);
 
   const totals = transactions.reduce((acc, tx) => {
     if (tx.type === TransactionType.REVENUE) {
@@ -44,10 +54,6 @@ export function DashboardView() {
     }
     return acc;
   }, { revenue: 0, expenses: 0, sharedExpenses: 0 });
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  };
 
   const userShare = totals.sharedExpenses * ratios.user;
   const partnerShare = totals.sharedExpenses * ratios.partner;
@@ -72,11 +78,11 @@ export function DashboardView() {
       <PageTutorial 
         pageId="dashboard"
         steps={[
-          { element: '#month-selector', popover: { title: 'Seletor de Mês', description: 'Navegue entre os meses para ver seu histórico financeiro.' } },
-          { element: '#balance-card', popover: { title: 'Saldo Combinado', description: 'Aqui você vê o quanto sobra para o casal após todas as despesas.' } },
-          { element: '#economy-stat', popover: { title: 'Economia do Mês', description: 'Acompanhe em tempo real quanto da sua renda total ainda está disponível.' } },
-          { element: '#proportional-division', popover: { title: 'Divisão de Contas', description: 'Nossa IA calcula automaticamente quanto cada um deve contribuir com base na renda.' } },
-          { element: '#category-spending', popover: { title: 'Gastos por Categoria', description: 'Veja onde vocês estão gastando mais e clique para detalhar.' } },
+          { element: '#month-selector', popover: { title: t('select_month'), description: t('select_month_desc', { defaultValue: 'Navegue entre os meses para ver seu histórico financeiro.' }) } },
+          { element: '#balance-card', popover: { title: t('combined_balance'), description: t('combined_balance_desc', { defaultValue: 'Aqui você vê o quanto sobra para o casal após todas as despesas.' }) } },
+          { element: '#economy-stat', popover: { title: t('economy_month'), description: t('economy_month_desc', { defaultValue: 'Acompanhe em tempo real quanto da sua renda total ainda está disponível.' }) } },
+          { element: '#proportional-division', popover: { title: t('proportional_division'), description: t('proportional_division_dashboard_desc', { defaultValue: 'Nossa IA calcula automaticamente quanto cada um deve contribuir com base na renda.' }) } },
+          { element: '#category-spending', popover: { title: t('category_spending'), description: t('category_spending_desc', { defaultValue: 'Veja onde vocês estão gastando mais e clique para detalhar.' }) } },
         ]}
       />
       <div id="month-selector">
@@ -92,19 +98,19 @@ export function DashboardView() {
           >
           <div className="relative z-10 flex flex-col items-center sm:items-start text-center sm:text-left w-full">
           <div className="flex items-center justify-between w-full">
-            <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.3em] mb-4">Saldo Combinado</p>
+            <p className="text-zinc-500 text-[10px] uppercase font-black tracking-[0.3em] mb-4">{t('combined_balance')}</p>
             <ChevronDown className={cn("text-zinc-500 transition-transform duration-300", expandedCard === 'main' ? 'rotate-180' : '')} size={16} />
           </div>
           <h2 className="text-4xl sm:text-6xl font-black tracking-tighter leading-none">{formatCurrency(totals.revenue - totals.expenses)}</h2>
           
           <div className="mt-10 sm:mt-14 flex items-center gap-10 sm:gap-16">
             <div className="flex flex-col gap-1 text-left">
-              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest leading-none">Receitas</p>
+              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest leading-none">{t('revenue_label')}</p>
               <p className="text-xl sm:text-2xl font-black text-emerald-400">{formatCurrency(totals.revenue)}</p>
             </div>
             <div className="w-px h-10 bg-zinc-800/50" />
             <div className="flex flex-col gap-1 text-left">
-              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest leading-none">Despesas</p>
+              <p className="text-zinc-500 text-[10px] uppercase font-black tracking-widest leading-none">{t('expense_label')}</p>
               <p className="text-xl sm:text-2xl font-black text-rose-500 dark:text-rose-400">{formatCurrency(totals.expenses)}</p>
             </div>
           </div>
@@ -119,25 +125,25 @@ export function DashboardView() {
               >
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   <div className="flex flex-col gap-1">
-                    <span className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Divisão do Casal</span>
+                    <span className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">{t('couple_split')}</span>
                     <div className="flex gap-4">
                       <div>
-                        <p className="text-xs font-bold text-zinc-400 uppercase">Eu</p>
+                        <p className="text-xs font-bold text-zinc-400 uppercase">{t('me')}</p>
                         <p className="text-sm font-black">{(ratios.user * 100).toFixed(0)}%</p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-zinc-400 uppercase">Parceiro</p>
+                        <p className="text-xs font-bold text-zinc-400 uppercase">{t('partner')}</p>
                         <p className="text-sm font-black">{(ratios.partner * 100).toFixed(0)}%</p>
                       </div>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Comprometimento</span>
+                    <span className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">{t('commitment')}</span>
                     <p className="text-sm font-black">{((totals.expenses / (totals.revenue || 1)) * 100).toFixed(1)}%</p>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">Dias Restantes</span>
-                    <p className="text-sm font-black">12 dias <span className="text-[10px] text-zinc-500 font-normal">estimados</span></p>
+                    <span className="text-zinc-500 text-[8px] font-black uppercase tracking-widest">{t('remaining_days')}</span>
+                    <p className="text-sm font-black">12 {t('days')} <span className="text-[10px] text-zinc-500 font-normal">{t('estimated')}</span></p>
                   </div>
                 </div>
               </motion.div>
@@ -157,8 +163,8 @@ export function DashboardView() {
            <Card className="h-full p-6 sm:p-8 flex flex-col justify-center">
               <div className="flex justify-between items-end mb-6">
               <div>
-                <p className="text-zinc-400 text-[10px] uppercase font-bold tracking-widest mb-1">Economia do Mês</p>
-                <p className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white">{(100 - (totals.expenses / (totals.revenue || 1)) * 100).toFixed(0)}% <span className="text-sm font-normal text-zinc-500 italic">restante</span></p>
+                <p className="text-zinc-400 text-[10px] uppercase font-bold tracking-widest mb-1">{t('economy_month')}</p>
+                <p className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white">{(100 - (totals.expenses / (totals.revenue || 1)) * 100).toFixed(0)}% <span className="text-sm font-normal text-zinc-500 italic">{t('remaining')}</span></p>
               </div>
               <TrendingUp className="w-6 h-6 text-orange-500" />
             </div>
@@ -177,7 +183,7 @@ export function DashboardView() {
         <div id="proportional-division" className="flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-6 bg-orange-600 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.3)]"></div>
-            <h3 className="font-black text-xs uppercase tracking-[0.2em] text-zinc-400">Divisão Proporcional</h3>
+            <h3 className="font-black text-xs uppercase tracking-[0.2em] text-zinc-400">{t('proportional_division')}</h3>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -215,7 +221,7 @@ export function DashboardView() {
                         .filter(tx => tx.type === TransactionType.REVENUE && tx.responsibility === userProfile?.uid)
                         .length > 0 && (
                           <div className="flex flex-col gap-1">
-                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-1">Minhas Receitas</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-1">{t('my_income')}</p>
                             {transactions
                               .filter(tx => tx.type === TransactionType.REVENUE && tx.responsibility === userProfile?.uid)
                               .map(tx => (
@@ -229,7 +235,7 @@ export function DashboardView() {
 
                       {/* Expenses/Contributions */}
                       <div className="flex flex-col gap-1">
-                        <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-1">Minhas Despesas & Partilhas</p>
+                        <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-1">{t('my_expenses_shares')}</p>
                         {transactions
                           .filter(tx => tx.type === TransactionType.EXPENSE && (tx.responsibility === userProfile?.uid || tx.responsibility === 'couple'))
                           .map(tx => {
@@ -237,7 +243,7 @@ export function DashboardView() {
                             return (
                               <div key={tx.id} className="flex justify-between items-center text-[10px]">
                                 <div className="flex items-center gap-1">
-                                  {tx.responsibility === 'couple' && <span className="text-[8px] text-zinc-400">Share:</span>}
+                                  {tx.responsibility === 'couple' && <span className="text-[8px] text-zinc-400">{t('share_label')}:</span>}
                                   <span className="text-zinc-400 font-bold truncate max-w-[120px]">{tx.description}</span>
                                 </div>
                                 <span className="font-black text-zinc-900 dark:text-white">{formatCurrency(amount)}</span>
@@ -269,7 +275,7 @@ export function DashboardView() {
               </div>
               <div>
                 <p className="text-3xl sm:text-4xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter mb-2">{formatCurrency(partnerShare)}</p>
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest truncate">{partnerProfile?.displayName || 'Convide seu par'}</p>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest truncate">{partnerProfile?.displayName || t('invite_partner')}</p>
               </div>
 
               <AnimatePresence>
@@ -285,7 +291,7 @@ export function DashboardView() {
                         .filter(tx => tx.type === TransactionType.REVENUE && tx.responsibility === partnerProfile?.uid)
                         .length > 0 && (
                           <div className="flex flex-col gap-1">
-                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-1">Receitas do Par</p>
+                            <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-1">{t('partner_income')}</p>
                             {transactions
                               .filter(tx => tx.type === TransactionType.REVENUE && tx.responsibility === partnerProfile?.uid)
                               .map(tx => (
@@ -299,7 +305,7 @@ export function DashboardView() {
 
                       {/* Expenses/Contributions */}
                       <div className="flex flex-col gap-1">
-                        <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-1">Despesas & Partilhas do Par</p>
+                        <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-1">{t('partner_expenses_shares')}</p>
                         {transactions
                           .filter(tx => tx.type === TransactionType.EXPENSE && (tx.responsibility === partnerProfile?.uid || tx.responsibility === 'couple'))
                           .map(tx => {
@@ -307,7 +313,7 @@ export function DashboardView() {
                             return (
                               <div key={tx.id} className="flex justify-between items-center text-[10px]">
                                 <div className="flex items-center gap-1">
-                                  {tx.responsibility === 'couple' && <span className="text-[8px] text-zinc-400">Share:</span>}
+                                  {tx.responsibility === 'couple' && <span className="text-[8px] text-zinc-400">{t('share_label')}:</span>}
                                   <span className="text-zinc-400 font-bold truncate max-w-[120px]">{tx.description}</span>
                                 </div>
                                 <span className="font-black text-zinc-900 dark:text-white">{formatCurrency(amount)}</span>
@@ -327,7 +333,7 @@ export function DashboardView() {
         <div id="category-spending" className="flex flex-col gap-6">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-orange-500 rounded-full"></div>
-            <h3 className="font-black text-xs uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Gastos por Categoria</h3>
+            <h3 className="font-black text-xs uppercase tracking-widest text-zinc-400 dark:text-zinc-500">{t('category_spending')}</h3>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -380,7 +386,7 @@ export function DashboardView() {
                         className="overflow-hidden"
                       >
                         <div className="mx-4 mt-1 p-4 bg-zinc-50 dark:bg-zinc-900/20 rounded-b-2xl border-x border-b border-zinc-100 dark:border-zinc-800/40 flex flex-col gap-3">
-                          <p className="text-[8px] font-black uppercase text-zinc-400 tracking-[0.2em] mb-1">Maiores Gastos</p>
+                          <p className="text-[8px] font-black uppercase text-zinc-400 tracking-[0.2em] mb-1">{t('major_expenses')}</p>
                           {transactions
                             .filter(t => t.category === name && t.type === TransactionType.EXPENSE)
                             .sort((a, b) => b.amount - a.amount)
@@ -392,7 +398,7 @@ export function DashboardView() {
                               </div>
                             ))}
                           {transactions.filter(t => t.category === name).length === 0 && (
-                            <p className="text-[10px] text-zinc-400 italic">Sem detalhes adicionais</p>
+                            <p className="text-[10px] text-zinc-400 italic">{t('no_details')}</p>
                           )}
                         </div>
                       </motion.div>
@@ -402,7 +408,7 @@ export function DashboardView() {
               );
             })}
             {sortedCategories.length === 0 && (
-              <p className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm italic">Nenhum gasto registrado este mês.</p>
+              <p className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm italic">{t('no_spending_recorded')}</p>
             )}
           </div>
         </div>

@@ -11,11 +11,15 @@ import {
   ShieldCheck,
   X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
 import { PageTutorial } from '../components/PageTutorial';
+import { useTranslation } from 'react-i18next';
+import { useFormatCurrency } from '../hooks/useFormatCurrency';
 
 export function CreditCardsView() {
+  const { t } = useTranslation();
+  const { formatCurrency } = useFormatCurrency();
   const { 
     userProfile, 
     partnerProfile, 
@@ -94,24 +98,21 @@ export function CreditCardsView() {
     setDeletingCardId(null);
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  };
 
   return (
     <div className="flex flex-col gap-8 pb-32">
       <PageTutorial 
         pageId="credit-cards-manage"
         steps={[
-          { element: '#cards-grid', popover: { title: 'Gestão de Cartões', description: 'Aqui você cadastra e edita seus cartões de crédito para que possamos monitorar o saldo e faturas.' } },
-          { element: '#add-card-btn', popover: { title: 'Novo Cartão', description: 'Clique aqui para adicionar um novo cartão à conta do casal.' } },
+          { element: '#cards-grid', popover: { title: t('invoice_mgmt_title', { defaultValue: 'Gestão de Cartões' }), description: t('invoice_mgmt_desc_alt', { defaultValue: 'Aqui você cadastra e edita seus cartões de crédito para que possamos monitorar o saldo e faturas.' }) } },
+          { element: '#add-card-btn', popover: { title: t('new_card_title_tutorial', { defaultValue: 'Novo Cartão' }), description: t('new_card_desc_tutorial_alt', { defaultValue: 'Clique aqui para adicionar um novo cartão à conta do casal.' }) } },
         ]}
       />
 
       <div className="flex items-center justify-between px-2">
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 dark:text-white">Meus Cartões</h2>
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Configuração de Crédito</p>
+          <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 dark:text-white">{t('my_cards_header', { defaultValue: 'Meus Cartões' })}</h2>
+          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">{t('credit_config', { defaultValue: 'Configuração de Crédito' })}</p>
         </div>
         <div id="add-card-btn">
           <Button 
@@ -120,7 +121,7 @@ export function CreditCardsView() {
             className="gap-2 shadow-xl shadow-orange-600/20"
           >
             <Plus size={18} />
-            <span className="hidden sm:inline">Adicionar</span>
+            <span className="hidden sm:inline">{t('add_card_btn', { defaultValue: 'Adicionar' })}</span>
           </Button>
         </div>
       </div>
@@ -130,7 +131,7 @@ export function CreditCardsView() {
           <Card className="md:col-span-2 p-12 border-dashed border-2 flex flex-col items-center gap-4 text-center bg-zinc-50 dark:bg-zinc-900/30 border-zinc-200 dark:border-zinc-800">
             <CreditCard className="w-12 h-12 text-zinc-200 dark:text-zinc-800" />
             <div className="max-w-xs">
-               <p className="text-zinc-900 dark:text-white font-bold">Nenhum cartão cadastrado</p>
+               <p className="text-zinc-900 dark:text-white font-bold">{t('no_cards_registered', { defaultValue: 'Nenhum cartão cadastrado' })}</p>
                <p className="text-xs text-zinc-500 mt-1">Cadastre seus cartões para automatizar a gestão de faturas e limite compartilhado.</p>
             </div>
             <Button variant="outline" onClick={() => setShowAddModal(true)} className="mt-2">Cadastrar Agora</Button>

@@ -33,7 +33,7 @@ service cloud.firestore {
 
     // --- COUPLES ---
     match /couples/{coupleId} {
-      allow get: if isSignedIn(); // Critical: allow any signed in user to see if they're part of it
+      allow get: if isSignedIn();
       allow list: if isSignedIn() && (
         resource.data.user1 == request.auth.uid || 
         resource.data.user2 == request.auth.uid
@@ -44,8 +44,13 @@ service cloud.firestore {
         resource.data.user2 == request.auth.uid ||
         resource.data.user2 == null // Allow joining
       );
+      allow delete: if isSignedIn() && (
+        resource.data.user1 == request.auth.uid || 
+        resource.data.user2 == request.auth.uid
+      );
       
       // --- SUBCOLLECTIONS ---
+      // Allow read/write if the user IS one of the members in the couple document
       match /transactions/{id} { allow read, write: if isMemberOfCouple(coupleId); }
       match /goals/{id} { allow read, write: if isMemberOfCouple(coupleId); }
       match /cards/{id} { allow read, write: if isMemberOfCouple(coupleId); }

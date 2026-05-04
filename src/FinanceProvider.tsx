@@ -19,6 +19,7 @@ import { auth, db } from './lib/firebase';
 import { handleFirestoreError, OperationType } from './lib/firestore-errors';
 import { Transaction, TransactionType, UserProfile, Couple, FrequencyType, Goal, Card, Category, BankAccount } from './types';
 import { format, addMonths, parseISO } from 'date-fns';
+import i18n from './i18n';
 
 interface FinanceContextType {
   userProfile: UserProfile | null;
@@ -53,11 +54,14 @@ interface FinanceContextType {
   removeCategory: (id: string) => Promise<void>;
   seedInitialCategories: () => Promise<void>;
   updateUserRevenue: (revenue: number) => Promise<void>;
+  updateLanguage: (lang: string) => Promise<void>;
   finishOnboarding: () => Promise<void>;
   toggleDarkMode: () => Promise<void>;
   updateSubscription: (isPremium: boolean) => Promise<void>;
   updateProfileColors: (colors: { userColor?: string; partnerColor?: string }) => Promise<void>;
   markTutorialAsSeen: (tutorialId: string) => Promise<void>;
+  resetAccount: () => Promise<void>;
+  removeTransactionsByCard: (cardId: string, month: string) => Promise<void>;
   isFamilyPremium: boolean;
   createCouple: () => Promise<void>;
   joinCouple: (coupleId: string) => Promise<void>;
@@ -120,7 +124,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
               const profile = { ...docSnap.data(), uid: user.uid } as UserProfile;
               setUserProfile(profile);
               
-              // Persist dark mode in localStorage for immediate application next time
+              // Apply language if it exists
+              if (profile.language && i18n.language !== profile.language) {
+                i18n.changeLanguage(profile.language);
+              }
+              
+              // Persist dark mode in localStorage
               if (profile.darkMode !== undefined) {
                 localStorage.setItem('darkMode', String(profile.darkMode));
               }
@@ -143,13 +152,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                         } else {
                           setPartnerProfile(null);
                         }
+                      }, (err) => {
+                        // Partner profile read error - likely during account reset/unlink
+                        console.warn("Partner profile access denied:", err.message);
                       });
                     } else {
+                      if (unsubscribePartner) { unsubscribePartner(); unsubscribePartner = null; }
                       setPartnerProfile(null);
                     }
+                  } else {
+                    // Couple doc deleted
+                    setCoupleProfile(null);
+                    setPartnerProfile(null);
                   }
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.GET, `couples/${profile.coupleId}`);
+                  // Couple read error - likely during account reset
+                  console.warn("Couple access denied:", err.message);
                 });
 
                 // Listener das Transações (respeitando o mês selecionado)
@@ -161,7 +179,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 unsubscribeTransactions = onSnapshot(txQuery, (snapshot) => {
                   setTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/transactions`);
+                  console.warn("Transactions access denied:", err.message);
                 });
 
                 // Listener de TODAS as Transações (para resumos históricos)
@@ -170,7 +188,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 unsubscribeAllTransactions = onSnapshot(allTxQuery, (snapshot) => {
                   setAllTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/all-transactions`);
+                  console.warn("All transactions access denied:", err.message);
                 });
 
                 // Listener das Metas
@@ -178,7 +196,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 unsubscribeGoals = onSnapshot(collection(db, 'couples', profile.coupleId, 'goals'), (snapshot) => {
                   setGoals(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Goal[]);
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/goals`);
+                  console.warn("Goals access denied:", err.message);
                 });
 
                 // Listener de Cartões
@@ -186,7 +204,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 unsubscribeCards = onSnapshot(collection(db, 'couples', profile.coupleId, 'cards'), (snapshot) => {
                   setCards(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Card[]);
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/cards`);
+                  console.warn("Cards access denied:", err.message);
                 });
 
                 // Listener de Contas Bancárias
@@ -194,7 +212,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                 unsubscribeAccounts = onSnapshot(collection(db, 'couples', profile.coupleId, 'accounts'), (snapshot) => {
                   setAccounts(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as BankAccount[]);
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/accounts`);
+                  console.warn("Accounts access denied:", err.message);
                 });
 
                 // Listener de Categorias
@@ -203,16 +221,27 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
                   setCategories(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Category[]);
                   setLoading(false);
                 }, (err) => {
-                  handleFirestoreError(err, OperationType.LIST, `couples/${profile.coupleId}/categories`);
+                  console.warn("Categories access denied:", err.message);
                   setLoading(false);
                 });
               } else {
-                // Usuário sem casal
+                // Usuário sem casal - Limpar listeners dependentes
+                if (unsubscribeCouple) { unsubscribeCouple(); unsubscribeCouple = null; }
+                if (unsubscribePartner) { unsubscribePartner(); unsubscribePartner = null; }
+                if (unsubscribeTransactions) { unsubscribeTransactions(); unsubscribeTransactions = null; }
+                if (unsubscribeAllTransactions) { unsubscribeAllTransactions(); unsubscribeAllTransactions = null; }
+                if (unsubscribeGoals) { unsubscribeGoals(); unsubscribeGoals = null; }
+                if (unsubscribeCards) { unsubscribeCards(); unsubscribeCards = null; }
+                if (unsubscribeAccounts) { unsubscribeAccounts(); unsubscribeAccounts = null; }
+                if (unsubscribeCategories) { unsubscribeCategories(); unsubscribeCategories = null; }
+
                 setCoupleProfile(null);
                 setPartnerProfile(null);
                 setTransactions([]);
+                setAllTransactions([]);
                 setGoals([]);
                 setCards([]);
+                setAccounts([]);
                 setCategories([]);
                 setLoading(false);
               }
@@ -454,6 +483,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateLanguage = async (language: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await i18n.changeLanguage(language);
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { 
+        language,
+        updatedAt: serverTimestamp()
+      });
+      setUserProfile(prev => prev ? { ...prev, language } : null);
+    } catch (error) {
+      console.error("Erro ao mudar idioma:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${auth.currentUser.uid}/language`);
+    }
+  };
+
   const finishOnboarding = async () => {
     if (!auth.currentUser) return;
     await updateDoc(doc(db, 'users', auth.currentUser.uid), { onboarded: true });
@@ -502,6 +546,102 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     });
     
     setUserProfile(prev => prev ? { ...prev, tutorialsSeen: newTutorials } : null);
+  };
+
+  const resetAccount = async () => {
+    if (!auth.currentUser || !userProfile) return;
+    const coupleId = userProfile.coupleId;
+
+    try {
+      // 1. Limpar dados do casal se existir (FAZER ANTES DE DESVINCULAR PARA MANTER PERMISSÕES)
+      if (coupleId) {
+        const collections = ['transactions', 'goals', 'cards', 'accounts', 'categories'];
+        
+        for (const collName of collections) {
+          const collRef = collection(db, 'couples', coupleId, collName);
+          const snapshot = await getDocs(collRef);
+          
+          let i = 0;
+          let batch = writeBatch(db);
+          for (const d of snapshot.docs) {
+            batch.delete(d.ref);
+            i++;
+            if (i === 400) {
+              await batch.commit();
+              batch = writeBatch(db);
+              i = 0;
+            }
+          }
+          if (i > 0) await batch.commit();
+        }
+
+        // Deletar o documento do casal
+        await deleteDoc(doc(db, 'couples', coupleId));
+      }
+
+      // 2. Desvincular e resetar perfil do usuário
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userRef, {
+        coupleId: null,
+        onboarded: false,
+        tutorialsSeen: [],
+        revenue: 0,
+        updatedAt: serverTimestamp()
+      });
+
+      // Atualizar estado local
+      setUserProfile(prev => prev ? { 
+        ...prev, 
+        coupleId: null, 
+        onboarded: false, 
+        tutorialsSeen: [], 
+        revenue: 0 
+      } : null);
+      setCoupleProfile(null);
+      setPartnerProfile(null);
+      setTransactions([]);
+      setAllTransactions([]);
+      setGoals([]);
+      setCards([]);
+      setAccounts([]);
+      setCategories([]);
+
+      // Limpar localStorage
+      localStorage.removeItem('onboarded');
+      
+    } catch (err: any) {
+      console.error("Erro ao resetar conta:", err);
+      handleFirestoreError(err, OperationType.DELETE, `users/${auth.currentUser.uid}/reset`);
+      throw err;
+    }
+  };
+
+  const removeTransactionsByCard = async (cardId: string, month: string) => {
+    if (!userProfile?.coupleId) return;
+    try {
+      const q = query(
+        collection(db, 'couples', userProfile.coupleId, 'transactions'),
+        where('cardId', '==', cardId),
+        where('month', '==', month)
+      );
+      const snapshot = await getDocs(q);
+      
+      let i = 0;
+      let batch = writeBatch(db);
+      for (const d of snapshot.docs) {
+        batch.delete(d.ref);
+        i++;
+        if (i === 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          i = 0;
+        }
+      }
+      if (i > 0) await batch.commit();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `couples/${userProfile.coupleId}/transactions/clear-card-${cardId}-${month}`);
+      throw error;
+    }
   };
 
   const updateTransaction = async (id: string, data: Partial<Transaction>) => {
@@ -808,7 +948,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       toggleDarkMode,
       updateSubscription,
       updateProfileColors,
+      updateLanguage,
       markTutorialAsSeen,
+      resetAccount,
+      removeTransactionsByCard,
       isFamilyPremium,
       seedInitialCategories,
       updateUserRevenue,

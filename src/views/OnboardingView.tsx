@@ -5,28 +5,32 @@ import { ChevronRight, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useFinance } from '../FinanceProvider';
 
-const steps = [
-  {
-    title: "Bem-vindo ao 3%",
-    description: "O controle financeiro feito sob medida para casais que buscam equilíbrio e transparência.",
-    image: "📊",
-    color: "bg-orange-50"
-  },
-  {
-    title: "Economia Proporcional",
-    description: "Divida as contas de forma justa: quem ganha mais, contribui mais. Simples assim.",
-    image: "⚖️",
-    color: "bg-blue-50"
-  },
-  {
-    title: "Tudo em um só lugar",
-    description: "Faturas, metas, cartões e planejamento conjuntos. Comece agora sua jornada financeira.",
-    image: "🏠",
-    color: "bg-green-50"
-  }
-];
+import { useTranslation } from 'react-i18next';
 
 export function OnboardingView({ onComplete }: { onComplete: () => void }) {
+  const { t } = useTranslation();
+  
+  const steps = [
+    {
+      title: t('welcome_title', { defaultValue: "Bem-vindo ao 3%" }),
+      description: t('onboarding_desc_p1', { defaultValue: "O controle financeiro feito sob medida para casais que buscam equilíbrio e transparência." }),
+      image: "📊",
+      color: "bg-orange-50"
+    },
+    {
+      title: t('step_prop_title', { defaultValue: "Economia Proporcional" }),
+      description: t('step_prop_desc', { defaultValue: "Divida as contas de forma justa: quem ganha mais, contribui mais. Simples assim." }),
+      image: "⚖️",
+      color: "bg-blue-50"
+    },
+    {
+      title: t('step_all_one_title', { defaultValue: "Tudo em um só lugar" }),
+      description: t('step_all_one_desc', { defaultValue: "Faturas, metas, cartões e planejamento conjuntos. Comece agora sua jornada financeira." }),
+      image: "🏠",
+      color: "bg-green-50"
+    }
+  ];
+
   const [current, setCurrent] = useState(0);
   const { finishOnboarding } = useFinance();
 
@@ -77,7 +81,7 @@ export function OnboardingView({ onComplete }: { onComplete: () => void }) {
         </div>
         
         <Button onClick={next} className="w-full">
-          {current === steps.length - 1 ? 'Começar' : 'Próximo'}
+          {current === steps.length - 1 ? t('get_started', { defaultValue: 'Começar' }) : t('next', { defaultValue: 'Próximo' })}
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
       </div>

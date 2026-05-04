@@ -5,6 +5,7 @@ import { User, Mail, Lock, ChevronLeft, ShieldCheck } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { updateProfile, updateEmail, updatePassword } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
+import { PageTutorial } from '../components/PageTutorial';
 
 interface AccountSettingsViewProps {
   onBack: () => void;
@@ -69,6 +70,12 @@ export function AccountSettingsView({ onBack }: AccountSettingsViewProps) {
 
   return (
     <div className="flex flex-col gap-8 pb-32">
+      <PageTutorial 
+        pageId="account-settings"
+        steps={[
+          { element: '#settings-card', popover: { title: 'Dados da Conta', description: 'Mantenha seus dados atualizados. Você pode mudar seu nome, e-mail e senha aqui.' } },
+        ]}
+      />
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800">
           <ChevronLeft className="w-6 h-6 text-zinc-900 dark:text-white" />
@@ -76,7 +83,7 @@ export function AccountSettingsView({ onBack }: AccountSettingsViewProps) {
         <h2 className="text-2xl font-black tracking-tighter uppercase text-zinc-900 dark:text-white">Minha Conta</h2>
       </div>
 
-      <Card className="flex flex-col gap-6 p-8 border-none shadow-2xl bg-white dark:bg-zinc-900/50 ring-1 ring-zinc-100 dark:ring-zinc-800">
+      <Card id="settings-card" className="flex flex-col gap-6 p-8 border-none shadow-2xl bg-white dark:bg-zinc-900/50 ring-1 ring-zinc-100 dark:ring-zinc-800">
         <div className="flex items-center gap-4 p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border border-orange-100 dark:border-orange-900/30">
           <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center text-white">
             <ShieldCheck size={24} />
