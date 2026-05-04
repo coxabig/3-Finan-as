@@ -31,7 +31,7 @@ interface FinanceContextType {
   cards: Card[];
   accounts: BankAccount[];
   categories: Category[];
-  cardSummaries: (Card & { invoiceTotal: number })[];
+  cardSummaries: (Card & { invoiceTotal: number; utilizedTotal: number })[];
   loading: boolean;
   error: string | null;
   selectedMonth: string; // YYYY-MM
@@ -55,12 +55,14 @@ interface FinanceContextType {
   seedInitialCategories: () => Promise<void>;
   updateUserRevenue: (revenue: number) => Promise<void>;
   updateLanguage: (lang: string) => Promise<void>;
+  updateBirthDate: (date: string) => Promise<void>;
   finishOnboarding: () => Promise<void>;
   toggleDarkMode: () => Promise<void>;
   updateSubscription: (isPremium: boolean) => Promise<void>;
   updateProfileColors: (colors: { userColor?: string; partnerColor?: string }) => Promise<void>;
   markTutorialAsSeen: (tutorialId: string) => Promise<void>;
   resetAccount: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   removeTransactionsByCard: (cardId: string, month: string) => Promise<void>;
   isFamilyPremium: boolean;
   createCouple: () => Promise<void>;
@@ -355,16 +357,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const cardSummaries = useMemo(() => {
     return cards.map(card => {
-      const cardTransactions = transactions.filter(tx => tx.cardId === card.id);
-      const invoiceTotal = cardTransactions.reduce((sum, tx) => {
+      // Monthly invoice
+      const monthlyTransactions = transactions.filter(tx => tx.cardId === card.id);
+      const invoiceTotal = monthlyTransactions.reduce((sum, tx) => {
         return tx.type === TransactionType.EXPENSE ? sum + tx.amount : sum - tx.amount;
       }, 0);
+
+      // Total utilized (all time)
+      const allCardTransactions = allTransactions.filter(tx => tx.cardId === card.id);
+      const utilizedTotal = allCardTransactions.reduce((sum, tx) => {
+        return tx.type === TransactionType.EXPENSE ? sum + tx.amount : sum - tx.amount;
+      }, 0);
+
       return {
         ...card,
-        invoiceTotal
+        invoiceTotal,
+        utilizedTotal
       };
     });
-  }, [cards, transactions]);
+  }, [cards, transactions, allTransactions]);
 
   const createCouple = async () => {
     if (!auth.currentUser) return;
@@ -498,6 +509,20 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateBirthDate = async (birthDate: string) => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'users', auth.currentUser.uid), { 
+        birthDate,
+        updatedAt: serverTimestamp()
+      });
+      setUserProfile(prev => prev ? { ...prev, birthDate } : null);
+    } catch (error) {
+      console.error("Erro ao atualizar data de nascimento:", error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${auth.currentUser.uid}/birthDate`);
+    }
+  };
+
   const finishOnboarding = async () => {
     if (!auth.currentUser) return;
     await updateDoc(doc(db, 'users', auth.currentUser.uid), { onboarded: true });
@@ -616,6 +641,27 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deleteAccount = async () => {
+    if (!auth.currentUser || !userProfile) return;
+    const uid = auth.currentUser.uid;
+
+    try {
+      // 1. Primeiro resetamos a conta (limpa casal, metas, transações, etc)
+      await resetAccount();
+
+      // 2. Deletamos o documento do usuário
+      await deleteDoc(doc(db, 'users', uid));
+
+      // 3. Deletamos a autenticação (isso requer login recente, o que deve ser garantido pelo modal de senha no frontend)
+      await auth.currentUser.delete();
+      
+    } catch (err: any) {
+      console.error("Erro ao excluir conta:", err);
+      handleFirestoreError(err, OperationType.DELETE, `users/${uid}/delete`);
+      throw err;
+    }
+  };
+
   const removeTransactionsByCard = async (cardId: string, month: string) => {
     if (!userProfile?.coupleId) return;
     try {
@@ -648,6 +694,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     if (!userProfile?.coupleId) return;
     try {
       const cleanData = sanitizeData(data);
+      const txRef = doc(db, 'couples', userProfile.coupleId, 'transactions', id);
+      const txSnap = await getDoc(txRef);
+      
+      if (!txSnap.exists()) throw new Error("Transação não encontrada.");
+      const oldData = txSnap.data() as Transaction;
+      
       const updateData: any = { 
         updatedAt: serverTimestamp() 
       };
@@ -665,7 +717,80 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         updateData.month = format(dateObj, 'yyyy-MM');
       }
 
-      await updateDoc(doc(db, 'couples', userProfile.coupleId, 'transactions', id), updateData);
+      // Se for installments e mudou algo comum ou o total de parcelas
+      if (oldData.parentId && oldData.frequency === FrequencyType.INSTALLMENTS) {
+        const batch = writeBatch(db);
+        const q = query(
+          collection(db, 'couples', userProfile.coupleId, 'transactions'),
+          where('parentId', '==', oldData.parentId)
+        );
+        const snapshot = await getDocs(q);
+        
+        const oldTotal = oldData.installments || 1;
+        const newTotal = cleanData.installments !== undefined ? cleanData.installments : oldTotal;
+
+        // Atualizar todos os existentes
+        snapshot.docs.forEach(d => {
+          const dData = d.data() as Transaction;
+          const dUpdate: any = { ...updateData };
+          
+          if (cleanData.installments !== undefined) {
+            dUpdate.installments = newTotal;
+            // Atualizar descrição se tiver o padrão (X/Y)
+            if (dData.description.includes(`(${dData.installmentIndex}/${oldTotal})`)) {
+              dUpdate.description = dData.description.replace(`(${dData.installmentIndex}/${oldTotal})`, `(${dData.installmentIndex}/${newTotal})`);
+            } else if (cleanData.description) {
+               dUpdate.description = `${cleanData.description} (${dData.installmentIndex}/${newTotal})`;
+            }
+          } else if (cleanData.description) {
+            dUpdate.description = `${cleanData.description} (${dData.installmentIndex}/${oldTotal})`;
+          }
+
+          batch.update(d.ref, dUpdate);
+        });
+
+        // Se aumentou o número de parcelas, criar as novas
+        if (newTotal > oldTotal) {
+          // Achar a data base (a partir da última parcela existente ou da parcela proporcional)
+          // Simplificação: usar a data da parcela 1 e adicionar meses
+          const lastExistingIdx = Math.max(...snapshot.docs.map(d => (d.data() as Transaction).installmentIndex || 0));
+          const someTx = snapshot.docs[0].data() as Transaction;
+          const baseDate = new Date(someTx.date + 'T12:00:00');
+          // Ajustar baseDate para ser a data da parcela 1
+          const firstDate = addMonths(baseDate, -( (someTx.installmentIndex || 1) - 1 ));
+
+          for (let i = lastExistingIdx + 1; i <= newTotal; i++) {
+            const currentDate = addMonths(firstDate, i - 1);
+            const currentMonth = format(currentDate, 'yyyy-MM');
+            const formattedDate = format(currentDate, 'yyyy-MM-dd');
+
+            const newTxData: any = {
+              description: `${cleanData.description || oldData.description} (${i}/${newTotal})`,
+              amount: cleanData.amount !== undefined ? parseFloat(cleanData.amount) : oldData.amount,
+              type: cleanData.type || oldData.type,
+              category: cleanData.category || oldData.category,
+              responsibility: cleanData.responsibility || oldData.responsibility,
+              date: formattedDate,
+              month: currentMonth,
+              frequency: FrequencyType.INSTALLMENTS,
+              ownerId: auth.currentUser?.uid,
+              cardId: cleanData.cardId !== undefined ? cleanData.cardId : oldData.cardId,
+              parentId: oldData.parentId,
+              installmentIndex: i,
+              installments: newTotal,
+              createdAt: serverTimestamp(),
+            };
+            
+            const newDocRef = doc(collection(db, 'couples', userProfile.coupleId, 'transactions'));
+            batch.set(newDocRef, newTxData);
+          }
+        }
+        // Se diminuiu, poderíamos deletar, mas vamos focar no caso do usuário (2 para 4)
+        
+        await batch.commit();
+      } else {
+        await updateDoc(txRef, updateData);
+      }
     } catch (err: any) {
       console.error("Erro ao atualizar transação:", err);
       handleFirestoreError(err, OperationType.UPDATE, `couples/${userProfile.coupleId}/transactions/${id}`);
@@ -949,8 +1074,10 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       updateSubscription,
       updateProfileColors,
       updateLanguage,
+      updateBirthDate,
       markTutorialAsSeen,
       resetAccount,
+      deleteAccount,
       removeTransactionsByCard,
       isFamilyPremium,
       seedInitialCategories,

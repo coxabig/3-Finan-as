@@ -15,10 +15,10 @@ import {
   ChevronRight,
   LogOut,
   Settings,
-  Bell,
   X,
   BarChart3,
-  Landmark
+  Landmark,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, Card, Input } from './components/ui';
@@ -141,15 +141,28 @@ function AppShell() {
               3%<span className="text-orange-600 underline decoration-[3px] underline-offset-[6px] ml-1">FINANÇAS</span>
             </h1>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4 group cursor-pointer" onClick={() => setCurrentView('profile')}>
-            <div className="hidden sm:flex flex-col text-right">
-              <p className="text-[10px] uppercase font-black text-zinc-400 leading-none tracking-[0.2em] mb-1">{t('active_session')}</p>
-              <p className="font-black text-xs sm:text-sm tracking-tight">
-                {userProfile.displayName?.split(' ')[0]} <span className="text-zinc-300 dark:text-zinc-600 mx-1">/</span> {partnerProfile?.displayName?.split(' ')[0] || '...'}
-              </p>
-            </div>
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900 dark:bg-zinc-100 rounded-2xl flex items-center justify-center text-white dark:text-zinc-900 font-black text-xs shadow-xl ring-4 ring-zinc-50 dark:ring-zinc-900 transition-transform group-hover:scale-105">
-              {userProfile.displayName?.charAt(0)}{partnerProfile?.displayName?.charAt(0) || ''}
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden sm:flex w-10 h-10 rounded-xl text-zinc-400 hover:text-orange-600 transition-colors"
+              onClick={() => {
+                const event = new CustomEvent('restart-tutorial', { detail: { pageId: 'current' } });
+                window.dispatchEvent(event);
+              }}
+            >
+              <HelpCircle className="w-5 h-5" />
+            </Button>
+            <div className="flex items-center gap-3 sm:gap-4 group cursor-pointer" onClick={() => setCurrentView('profile')}>
+              <div className="hidden sm:flex flex-col text-right">
+                <p className="text-[10px] uppercase font-black text-zinc-400 leading-none tracking-[0.2em] mb-1">{t('active_session')}</p>
+                <p className="font-black text-xs sm:text-sm tracking-tight">
+                  {userProfile.displayName?.split(' ')[0]} <span className="text-zinc-300 dark:text-zinc-600 mx-1">/</span> {partnerProfile?.displayName?.split(' ')[0] || '...'}
+                </p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900 dark:bg-zinc-100 rounded-2xl flex items-center justify-center text-white dark:text-zinc-900 font-black text-xs shadow-xl ring-4 ring-zinc-50 dark:ring-zinc-900 transition-transform group-hover:scale-105">
+                {userProfile.displayName?.charAt(0)}{partnerProfile?.displayName?.charAt(0) || ''}
+              </div>
             </div>
           </div>
         </div>

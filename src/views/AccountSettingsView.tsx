@@ -15,6 +15,7 @@ export function AccountSettingsView({ onBack }: AccountSettingsViewProps) {
   const { userProfile } = useFinance();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [password, setPassword] = useState('');
   const [isUpdatingAccount, setIsUpdatingAccount] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export function AccountSettingsView({ onBack }: AccountSettingsViewProps) {
     if (userProfile && !initialized.current) {
       setName(userProfile.displayName || '');
       setEmail(userProfile.email || '');
+      setBirthDate(userProfile.birthDate || '');
       initialized.current = true;
     }
   }, [userProfile]);
@@ -49,7 +51,12 @@ export function AccountSettingsView({ onBack }: AccountSettingsViewProps) {
         await updateDoc(doc(db, 'users', auth.currentUser.uid), { email: email });
       }
 
-      // 3. Update Password
+      // 3. Update Birth Date
+      if (birthDate !== userProfile?.birthDate) {
+        await updateDoc(doc(db, 'users', auth.currentUser.uid), { birthDate: birthDate });
+      }
+
+      // 4. Update Password
       if (password) {
         await updatePassword(auth.currentUser, password);
         setPassword('');
@@ -116,6 +123,18 @@ export function AccountSettingsView({ onBack }: AccountSettingsViewProps) {
               value={email} 
               onChange={e => setEmail(e.target.value)}
               placeholder="Seu e-mail"
+              className="h-14 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <User className="w-3.5 h-3.5" /> Data de Nascimento
+            </span>
+            <Input 
+              type="date"
+              value={birthDate} 
+              onChange={e => setBirthDate(e.target.value)}
               className="h-14 text-sm"
             />
           </div>

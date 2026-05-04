@@ -12,18 +12,15 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
   const { userProfile, markTutorialAsSeen, loading } = useFinance();
   const hasStarted = useRef(false);
 
-  useEffect(() => {
-    // Escuta evento global para reiniciar o tutorial se solicitado pelo usuário
-    const handleRestart = (e: any) => {
-      if (e.detail?.pageId === pageId) {
-        startTutorial();
-      }
-    };
-    window.addEventListener('restart-tutorial', handleRestart);
-    return () => window.removeEventListener('restart-tutorial', handleRestart);
-  }, [pageId]);
-
   const startTutorial = () => {
+    // Verificar se pelo menos o primeiro elemento existe
+    const firstStep = steps[0];
+    if (firstStep?.element && !document.querySelector(firstStep.element as string)) {
+      console.warn(`[Tutorial] Element ${firstStep.element} not found, retrying in 500ms...`);
+      setTimeout(startTutorial, 500);
+      return;
+    }
+
     const driverObj = driver({
       showProgress: true,
       allowClose: true,
@@ -34,7 +31,7 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
         ...step,
         popover: {
           ...step.popover,
-          nextBtnText: index === steps.length - 1 ? 'Concluir ✨' : 'Próximo',
+          nextBtnText: index === steps.length - 1 ? (pageId === 'dashboard' ? 'Entendi! 🚀' : 'Concluir ✨') : 'Próximo',
           prevBtnText: 'Anterior',
           doneBtnText: 'Concluir ✨',
         }
@@ -45,9 +42,11 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
           markTutorialAsSeen(pageId);
         }
       },
-      onDestroyed: () => {
-        // No driver.js v1, onDestroyed é chamado sempre que fecha.
-        // Já cuidamos da marcação no onDeselected acima para garantir finalização.
+      onDestroyed: (element, step, { state }) => {
+        // Se fechou no último passo ou completou, marca como visto
+        if (state.activeIndex === steps.length - 1) {
+          markTutorialAsSeen(pageId);
+        }
       }
     });
 
@@ -55,22 +54,30 @@ export function PageTutorial({ pageId, steps, autoStart = true }: PageTutorialPr
   };
 
   useEffect(() => {
-    if (loading || !userProfile || hasStarted.current) return;
+    if (loading || !userProfile) return;
 
-    // Se o usuário já viu este tutorial, não mostramos novamente automaticamente
-    if (userProfile.tutorialsSeen?.includes(pageId)) return;
+    // Escuta evento global para reiniciar o tutorial se solicitado pelo usuário
+    const handleRestart = (e: any) => {
+      if (e.detail?.pageId === pageId || e.detail?.pageId === 'current') {
+        startTutorial();
+      }
+    };
+    window.addEventListener('restart-tutorial', handleRestart);
 
-    if (autoStart) {
+    // Auto-start logic
+    if (autoStart && !hasStarted.current && !userProfile.tutorialsSeen?.includes(pageId)) {
       hasStarted.current = true;
-      
-      // Pequeno delay para garantir que o DOM esteja pronto e animações concluídas
       const timer = setTimeout(() => {
         startTutorial();
-      }, 1500);
-
-      return () => clearTimeout(timer);
+      }, 1000);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('restart-tutorial', handleRestart);
+      }
     }
-  }, [pageId, steps, autoStart, userProfile, loading, markTutorialAsSeen]);
+
+    return () => window.removeEventListener('restart-tutorial', handleRestart);
+  }, [pageId, userProfile, loading, autoStart]);
 
   return null;
 }

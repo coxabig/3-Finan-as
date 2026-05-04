@@ -55,7 +55,7 @@ export function FamilyView() {
         <PageTutorial 
           pageId="family-onboarding"
           steps={[
-            { element: '#family-setup', popover: { title: t('family_onboarding_title'), description: t('family_onboarding_desc', { defaultValue: 'Para começar, você precisa criar um grupo ou entrar no grupo do seu parceiro usando o código dele.' }) } },
+            { element: '#family-setup', popover: { title: t('family_onboarding_title'), description: t('family_onboarding_desc') } },
           ]}
         />
         <div id="family-setup" className="flex flex-col gap-8 py-8 items-center text-center max-w-sm mx-auto">
@@ -64,7 +64,7 @@ export function FamilyView() {
           </div>
           <div>
             <h2 className="text-3xl font-black mb-2 uppercase tracking-tighter text-zinc-900 dark:text-white">{t('start_couple')}</h2>
-            <p className="text-zinc-500 dark:text-zinc-400">{t('start_couple_desc', { defaultValue: 'Para usar o 3%, você precisa criar um espaço compartilhado ou entrar em um existente.' })}</p>
+            <p className="text-zinc-500 dark:text-zinc-400">{t('start_couple_desc')}</p>
           </div>
 
           {error && (
@@ -75,7 +75,7 @@ export function FamilyView() {
 
           <div className="flex flex-col gap-4 w-full">
             <Button onClick={handleCreate} disabled={loading} className="py-6 rounded-2xl">
-              {loading ? t('creating') : t('create_couple', { defaultValue: 'Criar Novo Casal' })}
+              {loading ? t('creating') : t('create_couple')}
             </Button>
             
             <div className="flex items-center gap-4 py-2">
@@ -86,13 +86,13 @@ export function FamilyView() {
 
             <div className="flex flex-col gap-2">
               <Input 
-                placeholder={t('invite_code_placeholder', { defaultValue: 'Cole o código do seu parceiro' })}
+                placeholder={t('invite_code_placeholder')}
                 value={inviteCode} 
                 onChange={e => setInviteCode(e.target.value)}
                 className="text-center"
               />
               <Button variant="outline" onClick={handleJoin} disabled={loading || !inviteCode} className="py-6 rounded-2xl">
-                {loading ? t('joining') : t('join_code', { defaultValue: 'Entrar com Código' })}
+                {loading ? t('joining') : t('join_code')}
               </Button>
             </div>
           </div>
@@ -106,14 +106,14 @@ export function FamilyView() {
       <PageTutorial 
         pageId="family-dashboard"
         steps={[
-          { element: '#family-members', popover: { title: t('family_dashboard_members_title'), description: t('family_dashboard_members_desc', { defaultValue: 'Aqui você vê quem faz parte do casal e a renda declarada por cada um.' }) } },
-          { element: '#participation-ratio', popover: { title: t('participation_ratio_title'), description: t('participation_ratio_desc', { defaultValue: 'O sistema calcula automaticamente quanto cada um deve contribuir baseado na renda do mês.' }) } },
-          { element: '#invite-partner', popover: { title: t('invite_partner_title'), description: t('invite_partner_desc', { defaultValue: 'Se o seu parceiro ainda não entrou, compartilhe este código com ele para unirem as finanças.' }) } },
+          { element: '#family-members', popover: { title: t('family_dashboard_members_title'), description: t('family_dashboard_members_desc') } },
+          { element: '#participation-ratio', popover: { title: t('participation_ratio_title'), description: t('participation_ratio_desc') } },
+          { element: '#invite-partner', popover: { title: t('invite_partner_title'), description: t('invite_partner_desc') } },
         ]}
       />
       <div className="flex flex-col gap-2">
         <h2 className="text-2xl font-black text-zinc-900 dark:text-white">{t('family_title')}</h2>
-        <p className="text-zinc-500 dark:text-zinc-400">{t('family_subtitle', { defaultValue: 'Membros ativos e participação por mês.' })}</p>
+        <p className="text-zinc-500 dark:text-zinc-400">{t('family_subtitle')}</p>
       </div>
 
       <MonthSelector />
@@ -158,7 +158,7 @@ export function FamilyView() {
             <UserPlus className="w-8 h-8 text-zinc-300 dark:text-zinc-700" />
             <div className="flex flex-col gap-1">
               <p className="font-bold text-zinc-900 dark:text-white">{t('invite_partner_title')}</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('invite_partner_desc', { defaultValue: 'Peça para seu parceiro entrar com o código abaixo:' })}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t('invite_partner_desc')}</p>
             </div>
             <div className="bg-white dark:bg-zinc-900 px-6 py-4 rounded-xl border border-zinc-200 dark:border-zinc-800 font-mono text-sm font-bold tracking-widest text-orange-600">
               {userProfile?.coupleId}
@@ -179,10 +179,10 @@ export function FamilyView() {
       <Card className="p-6 flex flex-col gap-4 bg-white dark:bg-zinc-900/50">
         <div className="flex items-center gap-2">
            <ShieldCheck className="w-5 h-5 text-orange-600" />
-           <h3 className="font-bold text-zinc-900 dark:text-white">{t('privacy_title', { defaultValue: 'Privacidade & Acesso' })}</h3>
+           <h3 className="font-bold text-zinc-900 dark:text-white">{t('privacy_title')}</h3>
         </div>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-          {t('privacy_desc', { defaultValue: 'Ambos os membros têm acesso total às despesas conjuntas e cartões compartilhados. As despesas individuais permanecem visíveis para fins de cálculo de proporcionalidade.' })}
+          {t('privacy_desc')}
         </p>
       </Card>
     </div>

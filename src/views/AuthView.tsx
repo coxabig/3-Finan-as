@@ -23,6 +23,7 @@ export function AuthView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -125,6 +126,20 @@ export function AuthView() {
       } else if (mode === 'register') {
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCred.user, { displayName: name });
+
+        // Save birth date immediately to prevent being lost during initial profile creation
+        await setDoc(doc(db, 'users', userCred.user.uid), {
+          uid: userCred.user.uid,
+          displayName: name,
+          email: email,
+          birthDate: birthDate,
+          revenue: 0,
+          onboarded: false,
+          isPremium: false,
+          darkMode: false,
+          tutorialsSeen: [],
+          createdAt: serverTimestamp()
+        });
         
         // Send email verification immediately
         await sendEmailVerification(userCred.user);
@@ -237,12 +252,23 @@ export function AuthView() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {mode === 'register' && (
-                <Input 
-                  placeholder="Nome completo" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
+                <>
+                  <Input 
+                    placeholder="Nome completo" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black uppercase text-zinc-400 ml-1 tracking-widest">Data de Nascimento</label>
+                    <Input 
+                      type="date"
+                      value={birthDate} 
+                      onChange={(e) => setBirthDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                </>
               )}
               <Input 
                 type="email" 

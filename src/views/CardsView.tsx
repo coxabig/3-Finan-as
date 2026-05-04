@@ -434,16 +434,23 @@ export function InvoicesView() {
                           <div className="flex flex-col gap-1.5 min-w-0">
                               <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">{t('invoice_this_month', { defaultValue: 'Fatura no Mês' })}</span>
                               <span className="text-sm sm:text-3xl font-black text-white tracking-tighter leading-none shrink-0">{formatCurrency(card.invoiceTotal || 0)}</span>
-                              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-2 shadow-inner">
-                                <div 
-                                  className="bg-white h-full transition-all duration-1000" 
-                                  style={{ width: `${Math.min((card.invoiceTotal / card.limit) * 100, 100)}%` }}
-                                />
+                              
+                              <div className="flex flex-col gap-1 mt-2">
+                                <div className="flex justify-between items-center text-[7px] sm:text-[8px] font-black uppercase tracking-widest">
+                                  <span className="text-white/30">Uso Total: {formatCurrency(card.utilizedTotal)}</span>
+                                  <span className="text-white/30">{( (card.utilizedTotal / card.limit) * 100 ).toFixed(0)}%</span>
+                                </div>
+                                <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden shadow-inner">
+                                  <div 
+                                    className="bg-white h-full transition-all duration-1000" 
+                                    style={{ width: `${Math.min((card.utilizedTotal / card.limit) * 100, 100)}%` }}
+                                  />
+                                </div>
                               </div>
                            </div>
                               <div className="flex flex-col gap-1.5 text-right items-end min-w-0">
-                                 <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">{t('available', { defaultValue: 'Disponível' })}</span>
-                                 <span className="text-xs sm:text-2xl font-black text-white/90 tracking-tighter leading-none shrink-0">{formatCurrency(card.limit - card.invoiceTotal)}</span>
+                                 <span className="text-white/40 text-[8px] sm:text-[9px] font-black uppercase tracking-widest leading-none">{t('available', { defaultValue: 'Disponível Real' })}</span>
+                                 <span className="text-xs sm:text-2xl font-black text-white/90 tracking-tighter leading-none shrink-0">{formatCurrency(card.limit - card.utilizedTotal)}</span>
                                  <span className="text-[8px] sm:text-[9px] font-black text-white/30 uppercase tracking-tighter mt-1">{t('limit_label', { defaultValue: 'Limite' })} {formatCurrency(card.limit)}</span>
                               </div>
                         </div>
@@ -471,11 +478,11 @@ export function InvoicesView() {
                                    </div>
                                 </div>
                                 <div className="flex flex-col gap-2 text-right">
-                                   <span className="text-white/30 text-[9px] font-black uppercase tracking-widest">Uso do Limite</span>
+                                   <span className="text-white/30 text-[9px] font-black uppercase tracking-widest">Uso Total do Limite</span>
                                    <p className="text-lg font-black italic tracking-tighter">
-                                     {((card.invoiceTotal / card.limit) * 100).toFixed(1)}%
+                                     {((card.utilizedTotal / card.limit) * 100).toFixed(1)}%
                                    </p>
-                                   <span className="text-[9px] font-bold text-white/40 uppercase">Comprometido</span>
+                                   <span className="text-[9px] font-bold text-white/40 uppercase">Comprometido Total</span>
                                 </div>
                               </div>
 

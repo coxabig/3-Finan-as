@@ -9,17 +9,9 @@ import { MonthSelector } from '../components/MonthSelector';
 import { getCategoryIcon } from '../lib/category-icons';
 import { PageTutorial } from '../components/PageTutorial';
 import { useFormatCurrency } from '../hooks/useFormatCurrency';
+import { COLORS } from '../lib/constants';
 
 import { SwipeableItem } from '../components/SwipeableItem';
-
-const COLORS = [
-  { name: 'Emerald', bg: 'bg-emerald-600', text: 'text-emerald-600', border: 'border-emerald-200', light: 'bg-emerald-50', dark: 'dark:bg-emerald-600/20', darkText: 'dark:text-emerald-400', darkBorder: 'dark:border-emerald-900/20', shadow: 'shadow-emerald-900/20' },
-  { name: 'Orange', bg: 'bg-orange-600', text: 'text-orange-600', border: 'border-orange-200', light: 'bg-orange-50', dark: 'dark:bg-orange-600/20', darkText: 'dark:text-orange-400', darkBorder: 'dark:border-orange-900/20', shadow: 'shadow-orange-900/20' },
-  { name: 'Blue', bg: 'bg-blue-600', text: 'text-blue-600', border: 'border-blue-200', light: 'bg-blue-50', dark: 'dark:bg-blue-600/20', darkText: 'dark:text-blue-400', darkBorder: 'dark:border-blue-900/20', shadow: 'shadow-blue-900/20' },
-  { name: 'Violet', bg: 'bg-violet-600', text: 'text-violet-600', border: 'border-violet-200', light: 'bg-violet-50', dark: 'dark:bg-violet-600/20', darkText: 'dark:text-violet-400', darkBorder: 'dark:border-violet-900/20', shadow: 'shadow-violet-900/20' },
-  { name: 'Rose', bg: 'bg-rose-600', text: 'text-rose-600', border: 'border-rose-200', light: 'bg-rose-50', dark: 'dark:bg-rose-600/20', darkText: 'dark:text-rose-400', darkBorder: 'dark:border-rose-900/20', shadow: 'shadow-rose-900/20' },
-  { name: 'Zinc', bg: 'bg-zinc-600', text: 'text-zinc-600', border: 'border-zinc-200', light: 'bg-zinc-50', dark: 'dark:bg-zinc-800/40', darkText: 'dark:text-zinc-400', darkBorder: 'dark:border-zinc-800/30', shadow: 'shadow-zinc-900/20' },
-];
 
 import { useTranslation } from 'react-i18next';
 
@@ -29,7 +21,7 @@ export function PlanningView() {
   const { transactions, userProfile, partnerProfile, cards, categories, addTransaction, updateTransaction, removeTransaction, ratios } = useFinance();
   
   const userColor = COLORS.find(c => c.name === userProfile?.userColor) || COLORS[1];
-  const partnerColor = COLORS.find(c => c.name === userProfile?.partnerColor) || COLORS[5];
+  const partnerColor = COLORS.find(c => c.name === (partnerProfile?.userColor || userProfile?.partnerColor)) || COLORS[5];
 
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -90,6 +82,8 @@ export function PlanningView() {
           date,
           responsibility,
           cardId: showModal === TransactionType.EXPENSE ? cardId : undefined,
+          frequency,
+          installments: frequency === FrequencyType.INSTALLMENTS ? parseInt(installments) : undefined,
         });
       } else {
         await addTransaction({
@@ -132,6 +126,7 @@ export function PlanningView() {
     setDate(tx.date);
     setResponsibility(tx.responsibility);
     setFrequency(tx.frequency);
+    setInstallments(tx.installments?.toString() || '2');
     setCardId(tx.cardId || '');
     setShowModal(tx.type);
   };

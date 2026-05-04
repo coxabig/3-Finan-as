@@ -1,31 +1,29 @@
 import React, { useState } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button, Input } from '../components/ui';
-import { User, CreditCard, Bell, Moon, LogOut, ChevronRight, X, Palette, HelpCircle, RefreshCw, ShieldCheck, Trash2, AlertTriangle, Eye, EyeOff, Lock, Languages, Check } from 'lucide-react';
+import { User, CreditCard, Moon, LogOut, ChevronRight, X, Palette, ShieldCheck, Trash2, AlertTriangle, Eye, EyeOff, Lock, Languages, Check } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { cn } from '../lib/utils';
 import { PageTutorial } from '../components/PageTutorial';
 import { useTranslation } from 'react-i18next';
-
-const COLORS = [
-  { name: 'Emerald', bg: 'bg-emerald-600' },
-  { name: 'Orange', bg: 'bg-orange-600' },
-  { name: 'Blue', bg: 'bg-blue-600' },
-  { name: 'Violet', bg: 'bg-violet-600' },
-  { name: 'Rose', bg: 'bg-rose-600' },
-  { name: 'Zinc', bg: 'bg-zinc-600' },
-];
+import { COLORS } from '../lib/constants';
+import { format, parseISO } from 'date-fns';
 
 export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void }) {
   const { t } = useTranslation();
-  const { userProfile, partnerProfile, toggleDarkMode, updateSubscription, updateProfileColors, resetAccount, updateLanguage } = useFinance();
+  const { userProfile, partnerProfile, toggleDarkMode, updateSubscription, updateProfileColors, resetAccount, deleteAccount, updateLanguage } = useFinance();
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showColorModal, setShowColorModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
   const [resetError, setResetError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const LANGUAGES = [
@@ -96,6 +94,50 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser || !userProfile) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    try {
+      // Reautenticação é OBRIGATÓRIA para deletar conta na Firebase
+      const isPasswordUser = auth.currentUser.providerData.some(p => p.providerId === 'password');
+      
+      if (isPasswordUser) {
+        if (!deletePassword) {
+          setDeleteError(t('confirm_password_reset'));
+          setDeleteLoading(false);
+          return;
+        }
+        const credential = EmailAuthProvider.credential(auth.currentUser.email!, deletePassword);
+        await reauthenticateWithCredential(auth.currentUser, credential);
+      } else {
+        // Para usuários sociais (Google), pedimos confirmação por texto "EXCLUIR"
+        const confirmWord = t('trash_confirm_word', { defaultValue: 'EXCLUIR' });
+        if (deletePassword.toUpperCase() !== confirmWord.toUpperCase()) {
+           setDeleteError(t('confirm_with_text') || 'Digite EXCLUIR para confirmar');
+           setDeleteLoading(false);
+           return;
+        }
+      }
+
+      await deleteAccount();
+      setShowDeleteAccountModal(false);
+      window.location.reload(); 
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setDeleteError(t('wrong_password'));
+      } else if (err.code === 'auth/too-many-requests') {
+        setDeleteError(t('too_many_requests'));
+      } else {
+        setDeleteError(t('error_reset'));
+      }
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const restartTutorial = (pageId: string) => {
     // Dispara evento global que o PageTutorial de cada página está ouvindo
     const event = new CustomEvent('restart-tutorial', { detail: { pageId } });
@@ -117,12 +159,24 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
         ]}
       />
       <div id="profile-header" className="flex items-center gap-6 p-4">
-        <div className="w-24 h-24 rounded-[32px] bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-4xl font-black text-white dark:text-zinc-900 shadow-2xl ring-8 ring-zinc-50 dark:ring-zinc-900 transition-transform hover:scale-105 duration-500">
+        <div 
+          className={cn(
+            "w-24 h-24 rounded-[32px] flex items-center justify-center text-4xl font-black text-white shadow-2xl ring-8 ring-zinc-50 dark:ring-zinc-900 transition-transform hover:scale-105 duration-500",
+            COLORS.find(c => c.name === userProfile?.userColor)?.bg || "bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900"
+          )}
+        >
            {userProfile?.displayName?.charAt(0) || 'U'}
         </div>
         <div>
            <h2 className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{userProfile?.displayName}</h2>
-           <p className="text-zinc-500 dark:text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">{userProfile?.email}</p>
+           <div className="flex flex-col gap-0.5">
+             <p className="text-zinc-500 dark:text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">{userProfile?.email}</p>
+             {userProfile?.birthDate && (
+               <p className="text-zinc-400 dark:text-zinc-500 font-medium text-[9px] uppercase tracking-widest">
+                 {format(parseISO(userProfile.birthDate), 'dd/MM/yyyy')}
+               </p>
+             )}
+           </div>
         </div>
       </div>
 
@@ -135,12 +189,21 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
               className="p-6 flex items-center justify-between group hover:border-zinc-200 dark:hover:border-zinc-700 transition-all cursor-pointer bg-white dark:bg-zinc-900/50 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800"
             >
                 <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-900 flex items-center justify-center text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800 transition-all">
-                    <User className="w-6 h-6" />
-                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowColorModal(true);
+                    }}
+                    className={cn(
+                      "w-14 h-14 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-lg",
+                      COLORS.find(c => c.name === userProfile?.userColor)?.bg || "bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400"
+                    )}
+                  >
+                    <User className={cn("w-6 h-6", userProfile?.userColor ? "text-white" : "text-zinc-500 dark:text-zinc-400")} />
+                  </button>
                   <div>
                     <span className="font-black text-base block text-zinc-900 dark:text-white">{t('personal_info')}</span>
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{t('name_email_password')}</p>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{t('personal_info')}</p>
                   </div>
                 </div>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 group-hover:bg-zinc-900 dark:group-hover:bg-white group-hover:text-white dark:group-hover:text-zinc-900 transition-all">
@@ -165,86 +228,7 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
                   <ChevronRight className="w-5 h-5" />
                 </div>
             </Card>
-
-            <Card 
-              className="p-6 flex flex-col gap-6 bg-white dark:bg-zinc-900/50 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800"
-            >
-                <div className="flex items-center gap-5">
-                  <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-950/20 flex items-center justify-center text-orange-600">
-                    <HelpCircle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <span className="font-black text-base block text-zinc-900 dark:text-white">{t('usage_tutorials')}</span>
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{t('review_main_guides')}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {[
-                    { id: 'dashboard', label: t('nav_home') },
-                    { id: 'planning', label: t('nav_planning') },
-                    { id: 'invoices', label: t('nav_invoices') },
-                    { id: 'credit-cards', label: t('my_cards') },
-                    { id: 'bank-accounts', label: t('my_accounts') },
-                  ].map(item => (
-                    <button 
-                      key={item.id}
-                      onClick={() => restartTutorial(item.id)}
-                      className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all group"
-                    >
-                      <span className="text-[10px] font-black uppercase text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white tracking-widest">{item.label}</span>
-                      <RefreshCw size={12} className="text-zinc-300 group-hover:text-orange-500 transition-colors" />
-                    </button>
-                  ))}
-                </div>
-            </Card>
           </div>
-        </div>
-
-        <div id="visual-identity" className="flex flex-col gap-4">
-          <Card className="p-6 flex flex-col gap-6 bg-white dark:bg-zinc-900/50 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800">
-             <div className="flex flex-col gap-3">
-               <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Palette size={16} className="text-zinc-400" />
-                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{t('your_color')}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    {COLORS.map(c => (
-                      <button
-                        key={`user-${c.name}`}
-                        onClick={() => updateProfileColors({ userColor: c.name })}
-                        className={cn(
-                          "w-6 h-6 rounded-full border-2 transition-transform hover:scale-110",
-                          c.bg,
-                          userProfile?.userColor === c.name ? "border-black dark:border-white scale-110" : "border-transparent opacity-50"
-                        )}
-                      />
-                    ))}
-                  </div>
-               </div>
-               <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Palette size={16} className="text-zinc-400" />
-                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{t('partner_color')}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    {COLORS.map(c => (
-                      <button
-                        key={`partner-${c.name}`}
-                        onClick={() => updateProfileColors({ partnerColor: c.name })}
-                        className={cn(
-                          "w-6 h-6 rounded-full border-2 transition-transform hover:scale-110",
-                          c.bg,
-                          userProfile?.partnerColor === c.name ? "border-black dark:border-white scale-110" : "border-transparent opacity-50"
-                        )}
-                      />
-                    ))}
-                  </div>
-               </div>
-             </div>
-             <p className="text-[10px] text-zinc-400 italic">{t('color_hint')}</p>
-          </Card>
         </div>
 
         <div id="preferences-section" className="flex flex-col gap-4">
@@ -293,17 +277,6 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
                   </div>
               </Card>
 
-              <Card className="p-6 flex items-center justify-between group bg-white dark:bg-zinc-900 border-none shadow-sm ring-1 ring-zinc-100 dark:ring-zinc-800 opacity-40 grayscale select-none">
-                  <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-zinc-500">
-                      <Bell className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <span className="font-black text-base block">{t('notifications')}</span>
-                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{t('coming_soon')}</p>
-                    </div>
-                  </div>
-              </Card>
           </div>
         </div>
 
@@ -324,6 +297,14 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
           >
             <Trash2 className="w-4 h-4 mr-2" />
             {t('reset_account')}
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            className="w-full h-10 rounded-xl text-rose-600 font-black text-[10px] tracking-widest uppercase hover:bg-rose-50 dark:hover:bg-rose-950/10 transition-all opacity-80 hover:opacity-100"
+            onClick={() => setShowDeleteAccountModal(true)}
+          >
+            {t('delete_account_btn')}
           </Button>
           
           <div className="flex flex-col items-center gap-2">
@@ -392,6 +373,44 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
                <p className="text-[10px] text-center text-zinc-400 italic">
                  {t('subscription_hint', { defaultValue: '* Basta um membro assinar para desbloquear as funções para ambos. Para remover anúncios individuais, ambos devem assinar.' })}
                </p>
+            </Card>
+          </div>
+        )}
+
+        {/* Color Selection Modal */}
+        {showColorModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <Card className="w-full max-w-sm p-8 flex flex-col gap-6 relative overflow-hidden">
+               <div className="flex justify-between items-start">
+                  <div>
+                    <h2 className="text-2xl font-black">{t('your_color')}</h2>
+                    <p className="text-zinc-500 text-sm">{t('choose_color_desc', { defaultValue: 'Escolha a cor que melhor te representa.' })}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setShowColorModal(false)}>
+                    <X className="w-6 h-6" />
+                  </Button>
+               </div>
+
+               <div className="grid grid-cols-3 gap-4">
+                  {COLORS.map(c => (
+                    <button
+                      key={c.name}
+                      onClick={() => {
+                        updateProfileColors({ userColor: c.name });
+                        setShowColorModal(false);
+                      }}
+                      className={cn(
+                        "group flex flex-col items-center gap-2 p-4 rounded-2xl transition-all border-2",
+                        userProfile?.userColor === c.name 
+                          ? "border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800" 
+                          : "border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      )}
+                    >
+                      <div className={cn("w-10 h-10 rounded-xl shadow-lg transition-transform group-hover:scale-110", c.bg)} />
+                      <span className="text-[10px] font-black uppercase text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white tracking-widest">{c.name}</span>
+                    </button>
+                  ))}
+               </div>
             </Card>
           </div>
         )}
@@ -520,6 +539,81 @@ export function ProfileView({ onNavigate }: { onNavigate: (view: string) => void
                       ) : (
                         t('reset_now')
                       )}
+                    </Button>
+                  </div>
+               </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Delete Account Modal */}
+        {showDeleteAccountModal && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in zoom-in-95 duration-200">
+            <Card className="w-full max-w-md p-8 flex flex-col gap-6 border-none shadow-[0_32px_64px_rgba(255,0,0,0.1)] bg-white dark:bg-zinc-900">
+               <div className="flex flex-col items-center text-center gap-4">
+                  <div className="w-20 h-20 bg-rose-600 text-white rounded-full flex items-center justify-center shadow-xl shadow-rose-500/20">
+                    <Trash2 size={40} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-rose-600 uppercase tracking-tighter">{t('delete_account_title')}</h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-3 leading-relaxed">
+                      {t('delete_account_desc')}
+                    </p>
+                  </div>
+               </div>
+               
+               <div className="flex flex-col gap-4">
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Input 
+                        type={showPassword ? "text" : "password"}
+                        placeholder={auth.currentUser?.providerData.some(p => p.providerId === 'password') ? t('current_password') : t('trash_confirm_placeholder', { defaultValue: "Digite 'EXCLUIR' para confirmar" })}
+                        value={deletePassword}
+                        onChange={(e) => setDeletePassword(e.target.value)}
+                        className="pl-12 pr-12 h-14 rounded-2xl border-rose-100 dark:border-rose-900/30 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-bold"
+                      />
+                      {auth.currentUser?.providerData.some(p => p.providerId === 'password') && (
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-rose-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      )}
+                    </div>
+
+                    {deleteError && (
+                      <p className="text-[10px] font-black text-rose-500 text-center uppercase tracking-widest bg-rose-50 dark:bg-rose-950/30 py-2 rounded-lg">
+                        {deleteError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-3 pt-2">
+                    <Button 
+                      onClick={handleDeleteAccount}
+                      disabled={deleteLoading || (auth.currentUser?.providerData.some(p => p.providerId === 'password') ? !deletePassword : deletePassword.toUpperCase() !== t('trash_confirm_word', { defaultValue: 'EXCLUIR' }))}
+                      className="h-16 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest shadow-xl shadow-rose-900/20 active:scale-95 transition-all text-base"
+                    >
+                      {deleteLoading ? (
+                        <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        t('delete_account_btn')
+                      )}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => {
+                        setShowDeleteAccountModal(false);
+                        setDeletePassword('');
+                        setDeleteError('');
+                      }}
+                      disabled={deleteLoading}
+                      className="h-12 text-zinc-400 hover:text-zinc-600 font-bold uppercase tracking-widest text-[10px]"
+                    >
+                      {t('cancel')}
                     </Button>
                   </div>
                </div>

@@ -51,6 +51,7 @@ export interface UserProfile {
   userColor?: string;
   partnerColor?: string;
   language?: string;
+  birthDate?: string;
 }
 
 export interface Couple {
