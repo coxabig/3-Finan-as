@@ -92,9 +92,103 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('selectedMonth', selectedMonth);
   }, [selectedMonth]);
 
-  // Separate Effect for context-wide transaction sync
+  // Separate Effect for Auth and User Profile
   useEffect(() => {
     let unsubscribeUser: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (unsubscribeUser) {
+        unsubscribeUser();
+        unsubscribeUser = null;
+      }
+
+      if (user) {
+        setLoading(true);
+        setError(null);
+        
+        // Listener do Perfil do Usuário
+        unsubscribeUser = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
+          if (docSnap.exists()) {
+            const profile = { ...docSnap.data(), uid: user.uid } as UserProfile;
+            setUserProfile(profile);
+            
+            // Apply language if it exists
+            if (profile.language && i18n.language !== profile.language) {
+              i18n.changeLanguage(profile.language);
+            }
+            
+            // Persist dark mode in localStorage
+            if (profile.darkMode !== undefined) {
+              localStorage.setItem('darkMode', String(profile.darkMode));
+            }
+
+            // If no couple connection, we are not loading the rest
+            // Only stop loading if we are sure there is no coupleId (from server snapshot)
+            // or if it's a fresh creation.
+            if (!profile.coupleId && !docSnap.metadata.fromCache) {
+              setLoading(false);
+            } else if (profile.coupleId) {
+              // Ensure loading stays true while the second effect kicks in
+              setLoading(true);
+            }
+          } else {
+            // Primeiro acesso: Criar perfil - Usar merge: true para segurança
+            try {
+              const newProfile = {
+                uid: user.uid,
+                displayName: user.displayName || 'Usuário',
+                email: user.email,
+                photoURL: user.photoURL,
+                revenue: 0,
+                onboarded: false,
+                isPremium: false,
+                darkMode: false,
+                tutorialsSeen: [],
+                createdAt: serverTimestamp()
+              };
+              await setDoc(doc(db, 'users', user.uid), newProfile, { merge: true });
+              // Snapshot triggers again
+            } catch (err) {
+              handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+              setLoading(false);
+            }
+          }
+        }, (err) => {
+          handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
+          setLoading(false);
+        });
+      } else {
+        // Logout
+        setUserProfile(null);
+        setCoupleProfile(null);
+        setPartnerProfile(null);
+        setTransactions([]);
+        setAllTransactions([]);
+        setGoals([]);
+        setCards([]);
+        setAccounts([]);
+        setCategories([]);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUser) unsubscribeUser();
+    };
+  }, []);
+
+  // Separate Effect for Couple and shared data - Depend exclusively on coupleId and selectedMonth
+  useEffect(() => {
+    if (!userProfile?.coupleId) {
+      // If we have a profile but no coupleId, and it was from the server, 
+      // we ensure loading is false.
+      return;
+    }
+
+    // Active connection found: keep loading true until everything is ready
+    setLoading(true);
+
     let unsubscribeCouple: (() => void) | null = null;
     let unsubscribePartner: (() => void) | null = null;
     let unsubscribeTransactions: (() => void) | null = null;
@@ -104,193 +198,90 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     let unsubscribeAccounts: (() => void) | null = null;
     let unsubscribeCategories: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      // 1. Limpar todos os listeners anteriores imediatamente
-      if (unsubscribeUser) { unsubscribeUser(); unsubscribeUser = null; }
-      if (unsubscribeCouple) { unsubscribeCouple(); unsubscribeCouple = null; }
-      if (unsubscribePartner) { unsubscribePartner(); unsubscribePartner = null; }
-      if (unsubscribeTransactions) { unsubscribeTransactions(); unsubscribeTransactions = null; }
-      if (unsubscribeAllTransactions) { unsubscribeAllTransactions(); unsubscribeAllTransactions = null; }
-      if (unsubscribeGoals) { unsubscribeGoals(); unsubscribeGoals = null; }
-      if (unsubscribeCards) { unsubscribeCards(); unsubscribeCards = null; }
-      if (unsubscribeAccounts) { unsubscribeAccounts(); unsubscribeAccounts = null; }
-      if (unsubscribeCategories) { unsubscribeCategories(); unsubscribeCategories = null; }
+    const coupleId = userProfile.coupleId;
 
-      if (user) {
-        setLoading(true);
-        setError(null);
-        try {
-          // Listener do Perfil do Usuário
-          unsubscribeUser = onSnapshot(doc(db, 'users', user.uid), async (docSnap) => {
-            if (docSnap.exists()) {
-              const profile = { ...docSnap.data(), uid: user.uid } as UserProfile;
-              setUserProfile(profile);
-              
-              // Apply language if it exists
-              if (profile.language && i18n.language !== profile.language) {
-                i18n.changeLanguage(profile.language);
-              }
-              
-              // Persist dark mode in localStorage
-              if (profile.darkMode !== undefined) {
-                localStorage.setItem('darkMode', String(profile.darkMode));
-              }
-
-              if (profile.coupleId) {
-                // Listener do Casal
-                if (unsubscribeCouple) unsubscribeCouple();
-                unsubscribeCouple = onSnapshot(doc(db, 'couples', profile.coupleId), async (coupleDoc) => {
-                  if (coupleDoc.exists()) {
-                    const coupleData = { ...coupleDoc.data(), id: coupleDoc.id } as Couple;
-                    setCoupleProfile(coupleData);
-                    
-                    const partnerId = coupleData.user1 === user.uid ? coupleData.user2 : coupleData.user1;
-                    
-                    if (partnerId) {
-                      if (unsubscribePartner) unsubscribePartner();
-                      unsubscribePartner = onSnapshot(doc(db, 'users', partnerId), (pDoc) => {
-                        if (pDoc.exists()) {
-                          setPartnerProfile({ ...pDoc.data(), uid: partnerId } as UserProfile);
-                        } else {
-                          setPartnerProfile(null);
-                        }
-                      }, (err) => {
-                        // Partner profile read error - likely during account reset/unlink
-                        console.warn("Partner profile access denied:", err.message);
-                      });
-                    } else {
-                      if (unsubscribePartner) { unsubscribePartner(); unsubscribePartner = null; }
-                      setPartnerProfile(null);
-                    }
-                  } else {
-                    // Couple doc deleted
-                    setCoupleProfile(null);
-                    setPartnerProfile(null);
-                  }
-                }, (err) => {
-                  // Couple read error - likely during account reset
-                  console.warn("Couple access denied:", err.message);
-                });
-
-                // Listener das Transações (respeitando o mês selecionado)
-                if (unsubscribeTransactions) unsubscribeTransactions();
-                const txQuery = query(
-                  collection(db, 'couples', profile.coupleId, 'transactions'),
-                  where('month', '==', selectedMonth)
-                );
-                unsubscribeTransactions = onSnapshot(txQuery, (snapshot) => {
-                  setTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
-                }, (err) => {
-                  console.warn("Transactions access denied:", err.message);
-                });
-
-                // Listener de TODAS as Transações (para resumos históricos)
-                if (unsubscribeAllTransactions) unsubscribeAllTransactions();
-                const allTxQuery = collection(db, 'couples', profile.coupleId, 'transactions');
-                unsubscribeAllTransactions = onSnapshot(allTxQuery, (snapshot) => {
-                  setAllTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
-                }, (err) => {
-                  console.warn("All transactions access denied:", err.message);
-                });
-
-                // Listener das Metas
-                if (unsubscribeGoals) unsubscribeGoals();
-                unsubscribeGoals = onSnapshot(collection(db, 'couples', profile.coupleId, 'goals'), (snapshot) => {
-                  setGoals(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Goal[]);
-                }, (err) => {
-                  console.warn("Goals access denied:", err.message);
-                });
-
-                // Listener de Cartões
-                if (unsubscribeCards) unsubscribeCards();
-                unsubscribeCards = onSnapshot(collection(db, 'couples', profile.coupleId, 'cards'), (snapshot) => {
-                  setCards(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Card[]);
-                }, (err) => {
-                  console.warn("Cards access denied:", err.message);
-                });
-
-                // Listener de Contas Bancárias
-                if (unsubscribeAccounts) unsubscribeAccounts();
-                unsubscribeAccounts = onSnapshot(collection(db, 'couples', profile.coupleId, 'accounts'), (snapshot) => {
-                  setAccounts(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as BankAccount[]);
-                }, (err) => {
-                  console.warn("Accounts access denied:", err.message);
-                });
-
-                // Listener de Categorias
-                if (unsubscribeCategories) unsubscribeCategories();
-                unsubscribeCategories = onSnapshot(collection(db, 'couples', profile.coupleId, 'categories'), (snapshot) => {
-                  setCategories(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Category[]);
-                  setLoading(false);
-                }, (err) => {
-                  console.warn("Categories access denied:", err.message);
-                  setLoading(false);
-                });
-              } else {
-                // Usuário sem casal - Limpar listeners dependentes
-                if (unsubscribeCouple) { unsubscribeCouple(); unsubscribeCouple = null; }
-                if (unsubscribePartner) { unsubscribePartner(); unsubscribePartner = null; }
-                if (unsubscribeTransactions) { unsubscribeTransactions(); unsubscribeTransactions = null; }
-                if (unsubscribeAllTransactions) { unsubscribeAllTransactions(); unsubscribeAllTransactions = null; }
-                if (unsubscribeGoals) { unsubscribeGoals(); unsubscribeGoals = null; }
-                if (unsubscribeCards) { unsubscribeCards(); unsubscribeCards = null; }
-                if (unsubscribeAccounts) { unsubscribeAccounts(); unsubscribeAccounts = null; }
-                if (unsubscribeCategories) { unsubscribeCategories(); unsubscribeCategories = null; }
-
-                setCoupleProfile(null);
-                setPartnerProfile(null);
-                setTransactions([]);
-                setAllTransactions([]);
-                setGoals([]);
-                setCards([]);
-                setAccounts([]);
-                setCategories([]);
-                setLoading(false);
-              }
+    // Listener do Casal
+    unsubscribeCouple = onSnapshot(doc(db, 'couples', coupleId), (coupleDoc) => {
+      if (coupleDoc.exists()) {
+        const coupleData = { ...coupleDoc.data(), id: coupleDoc.id } as Couple;
+        setCoupleProfile(coupleData);
+        
+        const partnerId = coupleData.user1 === userProfile.uid ? coupleData.user2 : coupleData.user1;
+        
+        if (partnerId) {
+          if (unsubscribePartner) unsubscribePartner();
+          unsubscribePartner = onSnapshot(doc(db, 'users', partnerId), (pDoc) => {
+            if (pDoc.exists()) {
+              setPartnerProfile({ ...pDoc.data(), uid: partnerId } as UserProfile);
             } else {
-              // Primeiro acesso: Criar perfil
-              try {
-                await setDoc(doc(db, 'users', user.uid), {
-                  uid: user.uid,
-                  displayName: user.displayName || 'Usuário',
-                  email: user.email,
-                  photoURL: user.photoURL,
-                  revenue: 0,
-                  onboarded: false,
-                  isPremium: false,
-                  darkMode: false,
-                  tutorialsSeen: [],
-                  createdAt: serverTimestamp()
-                });
-              } catch (err) {
-                handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
-              }
-              setLoading(false);
+              setPartnerProfile(null);
             }
           }, (err) => {
-            handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
+            console.warn("Partner profile access denied:", err.message);
           });
-
-        } catch (err: any) {
-          setError(err.message || "Erro inesperado.");
-          setLoading(false);
+        } else {
+          setPartnerProfile(null);
         }
       } else {
-        // Logout
-        setUserProfile(null);
         setCoupleProfile(null);
         setPartnerProfile(null);
-        setTransactions([]);
-        setGoals([]);
-        setCards([]);
-        setLoading(false);
       }
+    }, (err) => {
+      console.warn("Couple access denied:", err.message);
+    });
+
+    // Listener das Transações (respeitando o mês selecionado)
+    const txQuery = query(
+      collection(db, 'couples', coupleId, 'transactions'),
+      where('month', '==', selectedMonth)
+    );
+    unsubscribeTransactions = onSnapshot(txQuery, (snapshot) => {
+      setTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
+    }, (err) => {
+      console.warn("Transactions access denied:", err.message);
+    });
+
+    // Listener de TODAS as Transações (para resumos históricos)
+    const allTxQuery = collection(db, 'couples', coupleId, 'transactions');
+    unsubscribeAllTransactions = onSnapshot(allTxQuery, (snapshot) => {
+      setAllTransactions(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Transaction[]);
+    }, (err) => {
+      console.warn("All transactions access denied:", err.message);
+    });
+
+    // Listener das Metas
+    unsubscribeGoals = onSnapshot(collection(db, 'couples', coupleId, 'goals'), (snapshot) => {
+      setGoals(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Goal[]);
+    }, (err) => {
+      console.warn("Goals access denied:", err.message);
+    });
+
+    // Listener de Cartões
+    unsubscribeCards = onSnapshot(collection(db, 'couples', coupleId, 'cards'), (snapshot) => {
+      setCards(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Card[]);
+    }, (err) => {
+      console.warn("Cards access denied:", err.message);
+    });
+
+    // Listener de Contas Bancárias
+    unsubscribeAccounts = onSnapshot(collection(db, 'couples', coupleId, 'accounts'), (snapshot) => {
+      setAccounts(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as BankAccount[]);
+    }, (err) => {
+      console.warn("Accounts access denied:", err.message);
+    });
+
+    // Listener de Categorias
+    unsubscribeCategories = onSnapshot(collection(db, 'couples', coupleId, 'categories'), (snapshot) => {
+      setCategories(snapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Category[]);
+      setLoading(false); // Definitive loaded state
+    }, (err) => {
+      console.warn("Categories access denied:", err.message);
+      setLoading(false);
     });
 
     return () => {
-      unsubscribeAuth();
-      if (unsubscribeUser) unsubscribeUser();
       if (unsubscribeCouple) unsubscribeCouple();
+      if (unsubscribePartner) unsubscribePartner();
       if (unsubscribeTransactions) unsubscribeTransactions();
       if (unsubscribeAllTransactions) unsubscribeAllTransactions();
       if (unsubscribeGoals) unsubscribeGoals();
@@ -298,7 +289,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (unsubscribeAccounts) unsubscribeAccounts();
       if (unsubscribeCategories) unsubscribeCategories();
     };
-  }, [selectedMonth]);
+  }, [userProfile?.coupleId, selectedMonth, userProfile?.uid]);
 
   const isFamilyPremium = useMemo(() => {
     return !!(userProfile?.isPremium || partnerProfile?.isPremium);
@@ -442,11 +433,13 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const parentId = doc(collection(db, 'temp')).id;
+      const batch = writeBatch(db);
       
       // Fix: Ensure date is treated as local noon to avoid timezone shift to previous day
       const baseDate = cleanData.date ? new Date(cleanData.date + 'T12:00:00') : new Date();
 
       for (let i = 0; i < count; i++) {
+        // Create a new date object for each installment index
         const currentDate = addMonths(baseDate, i);
         const currentMonth = format(currentDate, 'yyyy-MM');
         const formattedDate = format(currentDate, 'yyyy-MM-dd');
@@ -475,8 +468,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           txData.startInstallmentIndex = cleanData.startInstallmentIndex;
         }
 
-        await addDoc(collection(db, 'couples', userProfile.coupleId, 'transactions'), txData);
+        const newDocRef = doc(collection(db, 'couples', userProfile.coupleId, 'transactions'));
+        batch.set(newDocRef, txData);
       }
+
+      await batch.commit();
     } catch (err: any) {
       console.error("Erro ao adicionar transação:", err);
       handleFirestoreError(err, OperationType.CREATE, `couples/${userProfile.coupleId}/transactions`);
@@ -710,6 +706,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       if (cleanData.responsibility !== undefined) updateData.responsibility = cleanData.responsibility;
       if (cleanData.cardId !== undefined) updateData.cardId = cleanData.cardId;
       if (cleanData.type !== undefined) updateData.type = cleanData.type;
+      if (cleanData.isPaid !== undefined) updateData.isPaid = cleanData.isPaid;
       
       if (cleanData.date) {
         const dateObj = new Date(cleanData.date + 'T12:00:00');
@@ -729,43 +726,57 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         const oldTotal = oldData.installments || 1;
         const newTotal = cleanData.installments !== undefined ? cleanData.installments : oldTotal;
 
+        // Base description to avoid "(1/2) (1/4)" issues
+        const baseDescription = (cleanData.description || oldData.description).replace(/\s*\(\d+\/\d+\)$/, '');
+
         // Atualizar todos os existentes
         snapshot.docs.forEach(d => {
           const dData = d.data() as Transaction;
-          const dUpdate: any = { ...updateData };
+          const isTarget = d.id === id;
           
-          if (cleanData.installments !== undefined) {
-            dUpdate.installments = newTotal;
-            // Atualizar descrição se tiver o padrão (X/Y)
-            if (dData.description.includes(`(${dData.installmentIndex}/${oldTotal})`)) {
-              dUpdate.description = dData.description.replace(`(${dData.installmentIndex}/${oldTotal})`, `(${dData.installmentIndex}/${newTotal})`);
-            } else if (cleanData.description) {
-               dUpdate.description = `${cleanData.description} (${dData.installmentIndex}/${newTotal})`;
-            }
-          } else if (cleanData.description) {
-            dUpdate.description = `${cleanData.description} (${dData.installmentIndex}/${oldTotal})`;
+          // Create a NEW update object for each doc to avoid pointer issues
+          const currentIdx = dData.installmentIndex || 1;
+          const dUpdate: any = { 
+            ...updateData,
+            installments: newTotal,
+            description: `${baseDescription} (${currentIdx}/${newTotal})`,
+            updatedAt: serverTimestamp()
+          };
+          
+          // Only update date/month for the actual document being edited
+          // We don't want to move ALL installments to the same day
+          if (!isTarget) {
+            delete dUpdate.date;
+            delete dUpdate.month;
+            delete dUpdate.isPaid;
           }
 
           batch.update(d.ref, dUpdate);
         });
 
-        // Se aumentou o número de parcelas, criar as novas
+        // Se aumentou o número de parcelas, criar as novas SEM REPETIR existentes
         if (newTotal > oldTotal) {
-          // Achar a data base (a partir da última parcela existente ou da parcela proporcional)
-          // Simplificação: usar a data da parcela 1 e adicionar meses
-          const lastExistingIdx = Math.max(...snapshot.docs.map(d => (d.data() as Transaction).installmentIndex || 0));
-          const someTx = snapshot.docs[0].data() as Transaction;
-          const baseDate = new Date(someTx.date + 'T12:00:00');
-          // Ajustar baseDate para ser a data da parcela 1
-          const firstDate = addMonths(baseDate, -( (someTx.installmentIndex || 1) - 1 ));
+          const snapshotDocs = snapshot.docs;
+          const existingIndices = new Set(snapshotDocs.map(d => (d.data() as Transaction).installmentIndex));
+          const lastExistingIdx = Math.max(...snapshotDocs.map(d => (d.data() as Transaction).installmentIndex || 0));
+          
+          // Encontrar a parcela 1 para calcular as datas das novas
+          const firstInstallment = snapshotDocs.find(d => (d.data() as Transaction).installmentIndex === 1)?.data() as Transaction 
+                                   || snapshotDocs[0].data() as Transaction;
+          
+          const baseDateForCalculation = new Date(firstInstallment.date + 'T12:00:00');
+          const firstDate = addMonths(baseDateForCalculation, -( (firstInstallment.installmentIndex || 1) - 1 ));
 
           for (let i = lastExistingIdx + 1; i <= newTotal; i++) {
+            // Safety: Skip if by some chance it already exists
+            if (existingIndices.has(i)) continue;
+
             const currentDate = addMonths(firstDate, i - 1);
             const currentMonth = format(currentDate, 'yyyy-MM');
             const formattedDate = format(currentDate, 'yyyy-MM-dd');
 
             const newTxData: any = {
-              description: `${cleanData.description || oldData.description} (${i}/${newTotal})`,
+              description: `${baseDescription} (${i}/${newTotal})`,
               amount: cleanData.amount !== undefined ? parseFloat(cleanData.amount) : oldData.amount,
               type: cleanData.type || oldData.type,
               category: cleanData.category || oldData.category,
@@ -785,7 +796,6 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             batch.set(newDocRef, newTxData);
           }
         }
-        // Se diminuiu, poderíamos deletar, mas vamos focar no caso do usuário (2 para 4)
         
         await batch.commit();
       } else {

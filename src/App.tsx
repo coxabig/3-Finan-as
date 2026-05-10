@@ -22,8 +22,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, Card, Input } from './components/ui';
-import { cn } from './lib/utils';
+import { cn, mixColors } from './lib/utils';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from './lib/constants';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -47,6 +48,11 @@ function AppShell() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
+
+  // Blend colors for the joint avatar
+  const userHex = COLORS.find(c => c.name === userProfile?.userColor)?.hex;
+  const partnerHex = COLORS.find(c => c.name === partnerProfile?.userColor)?.hex;
+  const blendedColor = mixColors(userHex, partnerHex);
 
   useEffect(() => {
     // Only show onboarding if user explicitly has onboarded: false (meaning they are new)
@@ -160,7 +166,10 @@ function AppShell() {
                   {userProfile.displayName?.split(' ')[0]} <span className="text-zinc-300 dark:text-zinc-600 mx-1">/</span> {partnerProfile?.displayName?.split(' ')[0] || '...'}
                 </p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-zinc-900 dark:bg-zinc-100 rounded-2xl flex items-center justify-center text-white dark:text-zinc-900 font-black text-xs shadow-xl ring-4 ring-zinc-50 dark:ring-zinc-900 transition-transform group-hover:scale-105">
+              <div 
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-xl ring-4 ring-zinc-50 dark:ring-zinc-900 transition-transform group-hover:scale-105"
+                style={{ backgroundColor: blendedColor }}
+              >
                 {userProfile.displayName?.charAt(0)}{partnerProfile?.displayName?.charAt(0) || ''}
               </div>
             </div>

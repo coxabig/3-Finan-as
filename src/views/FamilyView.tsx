@@ -9,6 +9,7 @@ import { PageTutorial } from '../components/PageTutorial';
 
 import { useTranslation } from 'react-i18next';
 import { useFormatCurrency } from '../hooks/useFormatCurrency';
+import { COLORS } from '../lib/constants';
 
 export function FamilyView() {
   const { t } = useTranslation();
@@ -120,9 +121,19 @@ export function FamilyView() {
 
       <div id="family-members" className="flex flex-col gap-4">
         {/* User Card */}
-        <Card className="p-6 flex items-center justify-between border-l-4 border-l-orange-500 bg-white dark:bg-zinc-900/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-zinc-200/50">
+        <Card className="p-6 flex items-center justify-between border-l-4 border-l-zinc-300 dark:border-l-zinc-700 bg-white dark:bg-zinc-900/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-zinc-200/50" style={{ borderLeftColor: COLORS.find(c => c.name === userProfile?.userColor)?.hex || '#ea580c' }}>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-orange-100 dark:bg-orange-600/20 flex items-center justify-center text-xl font-bold text-orange-600 dark:text-orange-400 border border-orange-100/50 dark:border-orange-900/30">
+            <div 
+              className={cn(
+                "w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold transition-all shadow-sm border",
+                COLORS.find(c => c.name === userProfile?.userColor)?.light || "bg-orange-100",
+                COLORS.find(c => c.name === userProfile?.userColor)?.dark || "dark:bg-orange-600/20",
+                COLORS.find(c => c.name === userProfile?.userColor)?.text || "text-orange-600",
+                COLORS.find(c => c.name === userProfile?.userColor)?.darkText || "dark:text-orange-400",
+                COLORS.find(c => c.name === userProfile?.userColor)?.darkBorder || "dark:border-orange-900/30"
+              )}
+              style={{ borderColor: COLORS.find(c => c.name === userProfile?.userColor)?.hex + '33' }}
+            >
                {userProfile?.displayName?.charAt(0) || 'U'}
             </div>
             <div>
@@ -131,16 +142,26 @@ export function FamilyView() {
             </div>
           </div>
           <div id="participation-ratio" className="text-right">
-             <span className="text-xs font-black text-orange-600">{(ratios.user * 100).toFixed(0)}%</span>
+             <span className={cn("text-xs font-black", COLORS.find(c => c.name === userProfile?.userColor)?.text || "text-orange-600")}>{(ratios.user * 100).toFixed(0)}%</span>
              <p className="text-[10px] text-zinc-400 font-bold uppercase">{t('participation')}</p>
           </div>
         </Card>
 
         {/* Partner Card */}
         {partnerProfile ? (
-          <Card className="p-6 flex items-center justify-between border-l-4 border-l-zinc-300 dark:border-l-zinc-700 bg-white dark:bg-zinc-900/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-zinc-200/50">
+          <Card className="p-6 flex items-center justify-between border-l-4 border-l-zinc-300 dark:border-l-zinc-700 bg-white dark:bg-zinc-900/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-zinc-200/50" style={{ borderLeftColor: COLORS.find(c => c.name === partnerProfile?.userColor)?.hex || '#52525b' }}>
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-zinc-100 dark:bg-zinc-800/40 flex items-center justify-center text-xl font-bold text-zinc-400 dark:text-zinc-500 border border-zinc-100/50 dark:border-zinc-800/30">
+              <div 
+                className={cn(
+                  "w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold transition-all shadow-sm border",
+                  COLORS.find(c => c.name === partnerProfile?.userColor)?.light || "bg-zinc-100",
+                  COLORS.find(c => c.name === partnerProfile?.userColor)?.dark || "dark:bg-zinc-800/40",
+                  COLORS.find(c => c.name === partnerProfile?.userColor)?.text || "text-zinc-400",
+                  COLORS.find(c => c.name === partnerProfile?.userColor)?.darkText || "dark:text-zinc-500",
+                  COLORS.find(c => c.name === partnerProfile?.userColor)?.darkBorder || "dark:border-zinc-800/30"
+                )}
+                style={{ borderColor: COLORS.find(c => c.name === partnerProfile?.userColor)?.hex + '33' }}
+              >
                  {partnerProfile.displayName?.charAt(0) || 'P'}
               </div>
               <div>
@@ -149,7 +170,7 @@ export function FamilyView() {
               </div>
             </div>
             <div className="text-right">
-               <span className="text-xs font-black text-zinc-400">{(ratios.partner * 100).toFixed(0)}%</span>
+               <span className={cn("text-xs font-black", COLORS.find(c => c.name === partnerProfile?.userColor)?.text || "text-zinc-400")}>{(ratios.partner * 100).toFixed(0)}%</span>
                <p className="text-[10px] text-zinc-400 font-bold uppercase">{t('participation')}</p>
             </div>
           </Card>

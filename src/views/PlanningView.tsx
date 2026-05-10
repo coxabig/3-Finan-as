@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFinance } from '../FinanceProvider';
 import { Card, Button, Input } from '../components/ui';
-import { Plus, X, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, CreditCard, Tag, ChevronDown } from 'lucide-react';
+import { Plus, X, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, CreditCard, Tag, ChevronDown, Search, CheckCircle } from 'lucide-react';
 import { TransactionType, Responsibility, FrequencyType } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -24,6 +24,7 @@ export function PlanningView() {
   const partnerColor = COLORS.find(c => c.name === (partnerProfile?.userColor || userProfile?.partnerColor)) || COLORS[5];
 
   const [isDesktop, setIsDesktop] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -120,7 +121,9 @@ export function PlanningView() {
 
   const handleEdit = (tx: any) => {
     setEditingId(tx.id);
-    setDescription(tx.description);
+    // Strip (X/Y) pattern from description for editing
+    const cleanDescription = tx.description.replace(/\s*\(\d+\/\d+\)$/, '');
+    setDescription(cleanDescription);
     setAmount(tx.amount.toString());
     setCategory(tx.category || '');
     setDate(tx.date);
@@ -133,7 +136,16 @@ export function PlanningView() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [viewTab, setViewTab] = useState<'pending' | 'paid'>('pending');
   const [expandedSummary, setExpandedSummary] = useState<'rev' | 'exp' | null>(null);
+
+  const handleTogglePaid = async (tx: any) => {
+    try {
+      await updateTransaction(tx.id, { isPaid: !tx.isPaid });
+    } catch (err) {
+      console.error("Error toggling paid status:", err);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     console.log("Delete triggered for ID:", id);
@@ -168,14 +180,41 @@ export function PlanningView() {
     }
   };
 
-  const revenues = transactions.filter(t => t.type === TransactionType.REVENUE);
+  const filteredTransactions = transactions.filter(tx => {
+    const searchLower = searchQuery.toLowerCase().trim();
+    const matchesPaid = viewTab === 'paid' ? !!tx.isPaid : !tx.isPaid;
+    
+    const matchesSearch = !searchLower || (
+      tx.description.toLowerCase().includes(searchLower) ||
+      (tx.category || '').toLowerCase().includes(searchLower) ||
+      tx.amount.toString().includes(searchLower)
+    );
+
+    return matchesPaid && matchesSearch;
+  });
+
+  const revenues = filteredTransactions.filter(t => t.type === TransactionType.REVENUE);
   
   // Filtrar despesas para não mostrar as que são de cartão
-  const nonCardExpenses = transactions.filter(t => t.type === TransactionType.EXPENSE && !t.cardId);
+  const nonCardExpenses = filteredTransactions.filter(t => t.type === TransactionType.EXPENSE && !t.cardId);
 
   // Calcular faturas dos cartões com seus splits
   const cardBills = cards.map(card => {
-    const cardExpenses = transactions.filter(t => t.type === TransactionType.EXPENSE && t.cardId === card.id);
+    // Para faturas, se houver busca, mostramos se algum item da fatura matches OU se o nome do cartão matches
+    const matchesPaidFilter = (t: any) => viewTab === 'paid' ? !!t.isPaid : !t.isPaid;
+    const cardExpenses = transactions.filter(t => t.type === TransactionType.EXPENSE && t.cardId === card.id && matchesPaidFilter(t));
+    
+    const searchLower = searchQuery.toLowerCase().trim();
+    const matchesSearch = !searchLower || 
+      card.name.toLowerCase().includes(searchLower) ||
+      cardExpenses.some(tx => 
+        tx.description.toLowerCase().includes(searchLower) ||
+        (tx.category || '').toLowerCase().includes(searchLower) ||
+        tx.amount.toString().includes(searchLower)
+      );
+
+    if (!matchesSearch) return null;
+
     const total = cardExpenses.reduce((sum, tx) => sum + tx.amount, 0);
     
     if (total === 0) return null;
@@ -254,6 +293,75 @@ export function PlanningView() {
       />
       <MonthSelector />
       
+      {/* Real vs Planned (Budgets) Comparison */}
+      {categories.some(cat => (cat.budget || 0) > 0) && (
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="font-black text-xs uppercase tracking-widest text-zinc-500">{t('real_vs_planned', { defaultValue: 'Real vs Planejado' })}</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {categories
+              .filter(cat => (cat.budget || 0) > 0)
+              .map(cat => {
+                const spent = transactions
+                  .filter(tx => tx.type === TransactionType.EXPENSE && tx.category === cat.name)
+                  .reduce((sum, tx) => sum + tx.amount, 0);
+                const budget = cat.budget || 0;
+                const percentage = Math.min((spent / budget) * 100, 100);
+                const isOverBudget = spent > budget;
+                const Icon = getCategoryIcon(cat.name, cat.iconName);
+
+                return (
+                  <Card key={cat.id} className="p-5 bg-white dark:bg-zinc-900/40 border-zinc-200/60 dark:border-zinc-800/60 flex flex-col gap-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md shadow-black/5"
+                          style={{ backgroundColor: cat.color }}
+                        >
+                          <Icon size={18} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{cat.name}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+                            {percentage > 100 ? t('over_budget', { defaultValue: 'Acima do orçamento' }) : t('within_budget', { defaultValue: 'Dentro do esperado' })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-black text-zinc-400">{t('planned', { defaultValue: 'Planejado' })}</p>
+                        <p className="font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(budget)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-zinc-500">{formatCurrency(spent)} {t('spent', { defaultValue: 'gastos' })}</span>
+                        <span className={cn(
+                          "font-black",
+                          isOverBudget ? "text-rose-600" : "text-emerald-600"
+                        )}>
+                          {percentage.toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-zinc-200/30 dark:border-zinc-700/30 p-[2px]">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000",
+                            isOverBudget ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" : "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+          </div>
+        </section>
+      )}
+
       {/* Summary Header */}
       <div id="summary-header" className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div 
@@ -367,6 +475,53 @@ export function PlanningView() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative group">
+        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-orange-600 transition-colors">
+          <Search size={18} />
+        </div>
+        <Input 
+          placeholder={t('search_placeholder', { defaultValue: 'Buscar transações...' })}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-12 sm:pl-12 h-14 rounded-2xl bg-white dark:bg-zinc-900 border-zinc-200/60 dark:border-zinc-800/60 shadow-sm focus:ring-0 focus:border-zinc-900 dark:focus:border-orange-600 transition-all font-bold"
+        />
+        {searchQuery && (
+          <button 
+            onClick={() => setSearchQuery('')}
+            className="absolute right-5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* Tabs Pending / Paid */}
+      <div className="flex bg-white dark:bg-zinc-900/40 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-zinc-800/60 shadow-sm mt-[-8px]">
+        <button
+          onClick={() => setViewTab('pending')}
+          className={cn(
+            "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+            viewTab === 'pending' 
+              ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-md scale-[1.02]" 
+              : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+          )}
+        >
+          {t('pending')}
+        </button>
+        <button
+          onClick={() => setViewTab('paid')}
+          className={cn(
+            "flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+            viewTab === 'paid' 
+              ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-md scale-[1.02]" 
+              : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+          )}
+        >
+          {t('paid')}
+        </button>
+      </div>
+
       {/* Lists */}
       <div id="transaction-lists" className="flex flex-col gap-10 mt-4">
         {/* Receitas */}
@@ -446,6 +601,20 @@ export function PlanningView() {
                         <div className="text-right">
                           <span className="text-[15px] sm:text-2xl font-black text-emerald-600 leading-none tracking-tighter">{formatCurrency(tx.amount)}</span>
                         </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTogglePaid(tx);
+                          }}
+                          className={cn(
+                            "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-95",
+                            tx.isPaid 
+                              ? "bg-emerald-600 text-white" 
+                              : "bg-white dark:bg-zinc-800 text-emerald-600 border border-emerald-100 dark:border-emerald-900/30"
+                          )}
+                        >
+                          <CheckCircle size={isDesktop ? 20 : 16} fill={tx.isPaid ? "white" : "none"} />
+                        </button>
                         <ChevronDown size={isDesktop ? 18 : 14} className={cn("text-zinc-300 transition-transform duration-300", expandedId === tx.id ? "rotate-180" : "")} />
                       </div>
                     </div>
@@ -453,6 +622,19 @@ export function PlanningView() {
                     {/* Desktop Actions */}
                     {isDesktop && (
                       <div className="flex items-center gap-2 pr-5">
+                         <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           onClick={() => handleTogglePaid(tx)}
+                           className={cn(
+                             "w-10 h-10 rounded-xl transition-all",
+                             tx.isPaid 
+                               ? "bg-emerald-600 text-white hover:bg-emerald-700" 
+                               : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                           )}
+                         >
+                           <CheckCircle size={18} />
+                         </Button>
                          <Button 
                            variant="ghost" 
                            size="icon" 
@@ -605,6 +787,22 @@ export function PlanningView() {
                           <div className="text-right">
                             <span className="text-[15px] sm:text-2xl font-black text-rose-600 leading-none tracking-tighter">{formatCurrency(item.amount)}</span>
                           </div>
+                          {!isBill && (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePaid(item);
+                              }}
+                              className={cn(
+                                "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all shadow-sm active:scale-95",
+                                item.isPaid 
+                                  ? "bg-emerald-600 text-white" 
+                                  : "bg-white dark:bg-zinc-800 text-rose-600 border border-rose-100 dark:border-rose-900/30"
+                              )}
+                            >
+                              <CheckCircle size={isDesktop ? 20 : 16} fill={item.isPaid ? "white" : "none"} />
+                            </button>
+                          )}
                           <ChevronDown size={isDesktop ? 18 : 14} className={cn("text-zinc-300 transition-transform duration-300", expandedId === item.id ? "rotate-180" : "")} />
                         </div>
                       </div>
@@ -612,6 +810,19 @@ export function PlanningView() {
                       {/* Desktop Actions */}
                       {isDesktop && !isBill && (
                         <div className="flex items-center gap-2 pr-5">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleTogglePaid(item)}
+                            className={cn(
+                              "w-10 h-10 rounded-xl transition-all",
+                              item.isPaid 
+                                ? "bg-emerald-600 text-white hover:bg-emerald-700" 
+                                : "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                            )}
+                          >
+                            <CheckCircle size={18} />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -732,7 +943,9 @@ export function PlanningView() {
             >
               <div className="flex items-center justify-between">
                 <h2 className={cn("text-2xl font-black tracking-tight", showModal === TransactionType.REVENUE ? "text-emerald-600" : "text-rose-600")}>
-                  {editingId ? t('edit') : t('new')} {showModal === TransactionType.REVENUE ? t('new_income') : t('new_expense')}
+                  {editingId 
+                    ? (showModal === TransactionType.REVENUE ? t('edit_income') : t('edit_expense')) 
+                    : (showModal === TransactionType.REVENUE ? t('new_income') : t('new_expense'))}
                 </h2>
                 <Button variant="ghost" size="icon" onClick={() => { setShowModal(null); setEditingId(null); }} className="rounded-full w-10 h-10">
                   <X />

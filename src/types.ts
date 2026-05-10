@@ -17,6 +17,7 @@ export interface Category {
   color: string;
   iconName?: string;
   coupleId: string;
+  budget?: number;
 }
 
 export interface Transaction {
@@ -34,6 +35,7 @@ export interface Transaction {
   installmentIndex?: number;
   parentId?: string;
   cardId?: string;
+  isPaid?: boolean;
   createdAt: any;
 }
 

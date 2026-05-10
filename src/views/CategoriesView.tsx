@@ -52,6 +52,7 @@ export function CategoriesView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [color, setColor] = useState(CATEGORY_COLORS[0]);
+  const [budget, setBudget] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,7 +62,12 @@ export function CategoriesView() {
 
     setIsSubmitting(true);
     try {
-      const data = { name, color, iconName: selectedIcon || null };
+      const data = { 
+        name, 
+        color, 
+        iconName: selectedIcon || null,
+        budget: budget ? parseFloat(budget) : undefined
+      };
       if (editingId) {
         await updateCategory(editingId, data);
       } else {
@@ -79,6 +85,7 @@ export function CategoriesView() {
     setEditingId(cat.id);
     setName(cat.name);
     setColor(cat.color);
+    setBudget(cat.budget?.toString() || '');
     setSelectedIcon(cat.iconName || null);
     setShowAddModal(true);
   };
@@ -88,6 +95,7 @@ export function CategoriesView() {
     setEditingId(null);
     setName('');
     setColor(CATEGORY_COLORS[0]);
+    setBudget('');
     setSelectedIcon(null);
   };
 
@@ -146,7 +154,6 @@ export function CategoriesView() {
                     </div>
                     <div>
                       <h4 className="font-bold text-zinc-900 dark:text-white">{cat.name}</h4>
-                      <p className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">{cat.color}</p>
                     </div>
                   </div>
 
@@ -275,6 +282,21 @@ export function CategoriesView() {
                       </button>
                     )}
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">{t('monthly_budget_label', { defaultValue: 'Orçamento Mensal (Opcional)' })}</span>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 font-bold group-focus-within:text-zinc-900">R$</div>
+                    <Input 
+                      type="number"
+                      placeholder="0,00" 
+                      value={budget} 
+                      onChange={e => setBudget(e.target.value)} 
+                      className="h-14 pl-14 text-lg font-bold border-2 focus:border-zinc-900 transition-colors"
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-400 px-1 italic">{t('budget_hint', { defaultValue: 'Defina quanto planeja gastar por mês nesta categoria.' })}</p>
                 </div>
 
                 <div className="flex flex-col gap-2">

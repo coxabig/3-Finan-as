@@ -143,6 +143,8 @@ export function InvoicesView() {
   const [txCategory, setTxCategory] = useState('');
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
   const [txResponsibility, setTxResponsibility] = useState<string>('couple');
+  const [txFrequency, setTxFrequency] = useState<FrequencyType>(FrequencyType.ONCE);
+  const [txInstallments, setTxInstallments] = useState(2);
   const [formLoading, setFormLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -194,12 +196,16 @@ export function InvoicesView() {
         type: TransactionType.EXPENSE,
         responsibility: txResponsibility as any,
         cardId: selectedCardId,
-        ownerId: userProfile?.uid
+        ownerId: userProfile?.uid,
+        frequency: txFrequency,
+        installments: txFrequency === FrequencyType.INSTALLMENTS ? txInstallments : undefined
       });
       setShowQuickAddTx(false);
       setTxDescription('');
       setTxAmount('');
       setTxCategory('');
+      setTxFrequency(FrequencyType.ONCE);
+      setTxInstallments(2);
     } catch (err) {
       console.error(err);
       alert(t('error_save_transaction', { defaultValue: 'Erro ao salvar transação.' }));
@@ -246,7 +252,7 @@ export function InvoicesView() {
           {
             parts: [
               pdfPart,
-              { text: "Você é um especialista financeiro. Analise esta fatura de cartão de crédito e extraia TODAS as transações de compras, serviços e pagamentos. Para cada transação, encontre: 'desc' (nome), 'val' (valor; positivo para compras, negativo para pagamentos/créditos), 'cat' (Alimentação, Transporte, Lazer, Assinaturas, Compras, Saúde, Geral), 'day' (dia do mês) e DETECTE PARCELAS (ex: '02/10', '1 de 5', 'P-03'). Se houver parcelas, extraia 'installments' (total) e 'current' (a parcela atual mostrada na fatura). Ignore juros e taxas. Retorne apenas o array JSON." }
+              { text: "Você é um especialista financeiro. Analise esta fatura de cartão de crédito e extraia TODAS as transações INDIVIDUAIS de compras, serviços e pagamentos. IMPORTANTE: Ignore linhas que representam o 'Total da Fatura', 'Saldo Anterior', 'Subtotal', ou 'Encargos Totais' para evitar duplicidade. Para cada transação, encontre: 'desc' (nome), 'val' (valor; positivo para compras, negativo para pagamentos/créditos), 'cat' (Alimentação, Transporte, Lazer, Assinaturas, Compras, Saúde, Geral), 'day' (dia do mês) e DETECTE PARCELAS (ex: '02/10', '1 de 5', 'P-03'). Se houver parcelas, extraia 'installments' (total) e 'current' (a parcela atual mostrada na fatura). Ignore juros e taxas. Retorne apenas o array JSON." }
             ]
           }
         ],
@@ -307,12 +313,30 @@ export function InvoicesView() {
   const handleSaveImported = async () => {
     setFormLoading(true);
     try {
+      // Get existing transactions for this month and card to avoid duplicates
+      const existingInMonth = transactions.filter(t => t.cardId === importCardId && t.month === selectedMonth);
+
       for (const tx of importedTx) {
         // Build the date using the day from the PDF if available
         let txDateStr = `${selectedMonth}-15`;
         if (tx.day) {
           const day = String(tx.day).padStart(2, '0');
           txDateStr = `${selectedMonth}-${day}`;
+        }
+
+        // Check if a similar transaction already exists (same description and similar amount)
+        // We use a small tolerance for amount if needed, but here we assume exact
+        const isDuplicate = existingInMonth.some(existing => {
+          const descMatch = existing.description.toLowerCase().includes(tx.desc.toLowerCase()) || 
+                          tx.desc.toLowerCase().includes(existing.description.toLowerCase());
+          const amountMatch = Math.abs(existing.amount - Math.abs(tx.val)) < 0.01;
+          const installmentMatch = !tx.installments || (existing.installmentIndex === tx.current);
+          return descMatch && amountMatch && installmentMatch;
+        });
+
+        if (isDuplicate) {
+          console.log(`Skipping duplicate transaction: ${tx.desc}`);
+          continue;
         }
         
         await addTransaction({
@@ -324,9 +348,13 @@ export function InvoicesView() {
           date: txDateStr,
           ownerId: userProfile?.uid,
           cardId: importCardId,
-          frequency: tx.installments ? FrequencyType.INSTALLMENTS : FrequencyType.ONCE,
+          // Important: When importing from invoice, we set to ONCE to avoid 
+          // addTransaction creating future installments that might already exist 
+          // or will be imported in next months. Exposure will still look 
+          // at installments/installmentIndex fields if provided.
+          frequency: FrequencyType.ONCE,
           installments: tx.installments,
-          startInstallmentIndex: tx.current || 1
+          installmentIndex: tx.current || 1
         } as any);
       }
       setImportedTx([]);
@@ -345,11 +373,13 @@ export function InvoicesView() {
 
   // Dynamic statistics for subscriptions and installments
   const activeSubscriptionsCount = transactions.filter(t => 
+    t.cardId &&
     t.type === TransactionType.EXPENSE && 
     (t.frequency === FrequencyType.FIXED || t.category === 'Assinaturas')
   ).length;
 
   const installmentTransactions = transactions.filter(t => 
+    t.cardId &&
     t.type === TransactionType.EXPENSE && 
     t.frequency === FrequencyType.INSTALLMENTS && 
     t.installments && 
@@ -505,6 +535,27 @@ export function InvoicesView() {
                                           {clearingInvoiceId === card.id ? t('reset_confirm_word') : t('clear_invoice')}
                                         </button>
                                       )}
+                                      <button 
+                                        onClick={async (e) => { 
+                                          e.stopPropagation(); 
+                                          if (card.invoiceTotal > 0) {
+                                            await addTransaction({
+                                              description: `Pagamento Fatura ${card.name}`,
+                                              amount: card.invoiceTotal,
+                                              type: TransactionType.REVENUE,
+                                              category: 'Pagamentos',
+                                              date: new Date().toISOString().split('T')[0],
+                                              cardId: card.id,
+                                              ownerId: userProfile?.uid
+                                            });
+                                            alert(t('invoice_paid_success', { defaultValue: 'Pagamento registrado com sucesso!' }));
+                                          }
+                                        }}
+                                        className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-all"
+                                      >
+                                        <CheckCircle2 size={10} />
+                                        Quitar Mês
+                                      </button>
                                       <span className="text-[10px] items-center gap-1 flex font-bold text-white/40">
                                          {cardTransactions.filter(tx => tx.cardId === card.id).length} itens
                                       </span>
@@ -837,6 +888,56 @@ export function InvoicesView() {
                   <option value="Geral">Geral</option>
                 </select>
                 <Input type="date" value={txDate} onChange={e => setTxDate(e.target.value)} required />
+                
+                <div className="flex flex-col gap-2">
+                   <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Frequência / Recorrência</span>
+                   <div className="grid grid-cols-3 gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => setTxFrequency(FrequencyType.ONCE)}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border-2",
+                          txFrequency === FrequencyType.ONCE ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-400"
+                        )}
+                      >
+                        Única
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setTxFrequency(FrequencyType.FIXED)}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border-2",
+                          txFrequency === FrequencyType.FIXED ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-400"
+                        )}
+                      >
+                        Fixa (Mês)
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setTxFrequency(FrequencyType.INSTALLMENTS)}
+                        className={cn(
+                          "py-3 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border-2",
+                          txFrequency === FrequencyType.INSTALLMENTS ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-400"
+                        )}
+                      >
+                        Parcelado
+                      </button>
+                   </div>
+                </div>
+
+                {txFrequency === FrequencyType.INSTALLMENTS && (
+                  <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Número de Parcelas</span>
+                    <Input 
+                      type="number" 
+                      min="2" 
+                      max="120" 
+                      value={txInstallments} 
+                      onChange={e => setTxInstallments(parseInt(e.target.value))} 
+                      required 
+                    />
+                  </div>
+                )}
                 
                 <div className="flex flex-col gap-2">
                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Quem é responsável?</span>

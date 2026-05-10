@@ -2,6 +2,7 @@ export const COLORS = [
   { 
     name: 'Emerald', 
     bg: 'bg-emerald-600', 
+    hex: '#059669',
     text: 'text-emerald-600', 
     border: 'border-emerald-200', 
     light: 'bg-emerald-50', 
@@ -13,6 +14,7 @@ export const COLORS = [
   { 
     name: 'Orange', 
     bg: 'bg-orange-600', 
+    hex: '#ea580c',
     text: 'text-orange-600', 
     border: 'border-orange-200', 
     light: 'bg-orange-50', 
@@ -24,6 +26,7 @@ export const COLORS = [
   { 
     name: 'Blue', 
     bg: 'bg-blue-600', 
+    hex: '#2563eb',
     text: 'text-blue-600', 
     border: 'border-blue-200', 
     light: 'bg-blue-50', 
@@ -35,6 +38,7 @@ export const COLORS = [
   { 
     name: 'Violet', 
     bg: 'bg-violet-600', 
+    hex: '#7c3aed',
     text: 'text-violet-600', 
     border: 'border-violet-200', 
     light: 'bg-violet-50', 
@@ -46,6 +50,7 @@ export const COLORS = [
   { 
     name: 'Rose', 
     bg: 'bg-rose-600', 
+    hex: '#e11d48',
     text: 'text-rose-600', 
     border: 'border-rose-200', 
     light: 'bg-rose-50', 
@@ -57,6 +62,7 @@ export const COLORS = [
   { 
     name: 'Zinc', 
     bg: 'bg-zinc-600', 
+    hex: '#52525b',
     text: 'text-zinc-600', 
     border: 'border-zinc-200', 
     light: 'bg-zinc-50', 
